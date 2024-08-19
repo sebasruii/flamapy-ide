@@ -54,7 +54,11 @@ def process_uvl_file(file_path):
         #print(tree_string.lower())
         if "warning" in tree_string.lower():
             return True, False, tree_string  # Warning, no exception
-        return False, False, ""  # No warning, no exception
+                
+        global fm
+        fm = FLAMAFeatureModel('uvlfile.uvl')
+
+        return False, False, get_model_information()  # No warning, no exception
     except Exception as e:
         error_message = str(e)
         print(f"Exception in file {file_path}: {error_message}")  # Print the exception information
@@ -85,13 +89,13 @@ def get_model_information():
     model_information = dict()
     print(fm)
 
-    model_information['Atomic Sets'] = fm.atomic_sets()
     model_information['Average Branching Factor'] = fm.average_branching_factor()
-    model_information['Core Features'] = fm.core_features()
-    model_information['Count Leafs'] = fm.count_leafs()
+    model_information['Leaf Number'] = fm.count_leafs()
     model_information['Estimated Number of Configurations'] = fm.estimated_number_of_configurations()
-    model_information['Leaf Features'] = fm.leaf_features()
     model_information['Max Depth'] = fm.max_depth()
+    model_information['Atomic Sets'] = fm.atomic_sets()
+    model_information['Core Features'] = fm.core_features()
+    model_information['Leaf Features'] = fm.leaf_features()
     return model_information
 `);
 

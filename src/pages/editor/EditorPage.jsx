@@ -160,9 +160,9 @@ process_uvl_file('uvlfile.uvl')
   }
 
   return (
-    <div className="flex flex-row h-screen w-screen">
+    <div className="flex flex-row h-full w-full">
       {/* Top Section */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 p-2 gap-2">
         {/* Left Side Panel */}
         <ResizableBox
           width={200}
@@ -170,7 +170,7 @@ process_uvl_file('uvlfile.uvl')
           axis="x"
           minConstraints={[150, Infinity]}
           maxConstraints={[400, Infinity]}
-          className="bg-gray-800 text-white p-4 resize-handle-right"
+          className="bg-gray-800 text-white p-4 resize-handle-right rounded-lg"
           handle={
             <div className="absolute right-0 top-0 h-full w-2 cursor-ew-resize" />
           }
@@ -182,7 +182,7 @@ process_uvl_file('uvlfile.uvl')
         <div className="flex flex-1 flex-col">
           {/* Text Editor */}
           <div className="flex-1 bg-gray-100 text-black p-4">
-            <div className="grid grid-cols-1 grid-rows-1 h-full w-full">
+            <div className="grid grid-cols-1 grid-rows-1 h-full w-full rounded-lg">
               <Editor
                 defaultLanguage="uvl"
                 value={defaultCode}
@@ -198,7 +198,7 @@ process_uvl_file('uvlfile.uvl')
             axis="y"
             minConstraints={[Infinity, 100]}
             maxConstraints={[Infinity, 300]}
-            className="bg-gray-700 text-white p-4 resize-handle-top"
+            className="bg-gray-700 text-white p-4 resize-handle-top rounded-lg"
             handle={
               <div className="absolute top-0 left-0 w-full h-2 cursor-ns-resize" />
             }

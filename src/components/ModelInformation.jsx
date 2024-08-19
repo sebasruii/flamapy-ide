@@ -1,14 +1,13 @@
 /* eslint-disable react/prop-types */
 import { ResizableBox } from "react-resizable";
+import ModelProperties from "./ModelProperties";
 
 function displayValidity(isValid) {
   if (isValid) {
     if (isValid[0] === false && isValid[1] === false) {
-      return (
-        <div className="w-full bg-green-700 text-white py-2 px-4 rounded mt-1">
-          The model is valid
-        </div>
-      );
+      const modelInformation = Array.from(isValid[2].entries());
+
+      return <ModelProperties modelProperties={modelInformation} />;
     } else if (isValid[0] === true) {
       return (
         <div className="w-full bg-yellow-700 text-white py-2 px-4 rounded mt-1">
@@ -26,7 +25,7 @@ function displayValidity(isValid) {
 }
 
 const ModelInformation = ({
-  width = 200,
+  width = 300,
   minWidth = 150,
   maxWidth = 400,
   buttonText = "Validate model",
@@ -40,14 +39,14 @@ const ModelInformation = ({
       axis="x"
       minConstraints={[minWidth, Infinity]}
       maxConstraints={[maxWidth, Infinity]}
-      className="bg-neutral-300 text-neutral-900 p-4 resize-handle-left"
+      className="bg-neutral-300 text-neutral-900 p-4 resize-handle-left rounded-lg overflow-auto"
       handle={
         <div className="absolute left-0 top-0 h-full w-2 cursor-ew-resize" />
       }
       resizeHandles={["w"]}
     >
       <button
-        className="w-full bg-[#356C99] text-white py-2 px-4 rounded active:bg-[#0D486C]"
+        className="w-full bg-[#356C99] text-white py-2 px-4 rounded active:bg-[#0D486C] shadow-lg"
         onClick={onValidateModel}
       >
         {buttonText}
