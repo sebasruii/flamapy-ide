@@ -1,15 +1,32 @@
-import { useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import { loadFlamapy } from "../../flamapy/flamapy";
 import Editor from "@monaco-editor/react";
 import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
+import ModelInformation from "../../components/ModelInformation";
 
 function EditorPage() {
+  const [pyodide, setPyodide] = useState(null);
+  const [isValid, setIsValid] = useState(false);
+
   const editorRef = useRef(null);
 
   const defaultCode = `features
     a
         optional
             b`;
+
+  useEffect(() => {
+    async function initializePyodide() {
+      try {
+        const pyodideInstance = await loadFlamapy();
+        setPyodide(pyodideInstance);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    initializePyodide();
+  }, []);
 
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
@@ -128,6 +145,20 @@ function EditorPage() {
     editorRef.current.layout({});
   };
 
+  async function validateModel() {
+    const code = editorRef.current.getValue();
+    pyodide.globals.set("code", code);
+    const result = await pyodide.runPythonAsync(
+      `
+with open("uvlfile.uvl", "w") as text_file:
+    text_file.write(code)
+
+process_uvl_file('uvlfile.uvl')
+    `
+    );
+    setIsValid(result.toJs());
+  }
+
   return (
     <div className="flex flex-row h-screen w-screen">
       {/* Top Section */}
@@ -156,6 +187,7 @@ function EditorPage() {
                 defaultLanguage="uvl"
                 value={defaultCode}
                 onMount={handleEditorDidMount}
+                onChange={validateModel}
               />
             </div>
           </div>
@@ -177,20 +209,7 @@ function EditorPage() {
           </ResizableBox>
         </div>
         {/* Right Side Panel */}
-        <ResizableBox
-          width={200}
-          height={Infinity}
-          axis="x"
-          minConstraints={[150, Infinity]}
-          maxConstraints={[400, Infinity]}
-          className="bg-gray-800 text-white p-4 resize-handle-left"
-          handle={
-            <div className="absolute left-0 top-0 h-full w-2 cursor-ew-resize" />
-          }
-          resizeHandles={["w"]}
-        >
-          <p>Right Side Panel</p>
-        </ResizableBox>
+        <ModelInformation onValidateModel={validateModel} isValid={isValid} />
       </div>
     </div>
   );
