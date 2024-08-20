@@ -1,20 +1,32 @@
 import { useEffect, useState, useRef } from "react";
 import { loadFlamapy } from "../../flamapy/flamapy";
-import Editor from "@monaco-editor/react";
 import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
 import ModelInformation from "../../components/ModelInformation";
+import ExecutionOutput from "../../components/ExecutionOutput";
+import UVLEditor from "../../components/UVLEditor";
+import Toolbar from "../../components/Toolbar";
+import DropdownMenu from "../../components/DropdownMenu";
 
 function EditorPage() {
   const [pyodide, setPyodide] = useState(null);
   const [isValid, setIsValid] = useState(false);
+  const [output, setOutput] = useState({
+    label: "Execution results",
+    result: "Here you will see the result of executing an operation",
+  });
 
   const editorRef = useRef(null);
 
-  const defaultCode = `features
-    a
-        optional
-            b`;
+  const SATOperations = [
+    { label: "Configurations", value: "PySATConfigurations" },
+    { label: "Number of configurations", value: "PySATConfigurationsNumber" },
+    { label: "Dead features", value: "PySATDeadFeatures" },
+    { label: "Diagnosis", value: "PySATDiagnosis" },
+    { label: "False optional features", value: "PySATFalseOptionalFeatures" },
+    { label: "Satisfiable", value: "PySATSatisfiable" },
+    { label: "Sampling", value: "PySATSampling" },
+  ];
 
   useEffect(() => {
     async function initializePyodide() {
@@ -28,118 +40,7 @@ function EditorPage() {
     initializePyodide();
   }, []);
 
-  function handleEditorDidMount(editor, monaco) {
-    editorRef.current = editor;
-    monaco.languages.register({ id: "uvl" });
-
-    // Set the tokens provider (syntax highlighting)
-    monaco.languages.setMonarchTokensProvider("uvl", {
-      defaultToken: "",
-      tokenPostfix: ".uvl",
-
-      keywords: [
-        "root",
-        "features",
-        "constraints",
-        "group",
-        "and",
-        "or",
-        "xor",
-        "alternative",
-        "optional",
-        "mandatory",
-      ],
-
-      operators: ["=", "==", "!", ">", "<", ">=", "<=", "&&", "||", "!", "+"],
-
-      symbols: /[=><!~?:&|+\-*\/\^%]+/,
-
-      escapes: /\\(?:[abfnrtv\\"'0-9x])/,
-
-      tokenizer: {
-        root: [
-          // Identifiers and keywords
-          [
-            /[a-z_$][\w$]*/,
-            {
-              cases: {
-                "@keywords": "keyword",
-                "@default": "identifier",
-              },
-            },
-          ],
-
-          // Whitespace
-          { include: "@whitespace" },
-
-          // Delimiters and operators
-          [/[{}()\[\]]/, "@brackets"],
-          [/[<>](?!@symbols)/, "@brackets"],
-          [
-            /@symbols/,
-            {
-              cases: {
-                "@operators": "operator",
-                "@default": "",
-              },
-            },
-          ],
-
-          // Numbers
-          [/\d*\.\d+([eE][\-+]?\d+)?/, "number.float"],
-          [/\d+/, "number"],
-
-          // Strings
-          [/"([^"\\]|\\.)*$/, "string.invalid"], // Non-terminated string
-          [/"$/, "string.escape", "@popall"],
-          [/"/, "string", "@string"],
-
-          // Comments
-          [/\/\*/, "comment", "@comment"],
-          [/\/\/.*$/, "comment"],
-        ],
-
-        comment: [
-          [/[^\/*]+/, "comment"],
-          [/\*\//, "comment", "@pop"],
-          [/[\/*]/, "comment"],
-        ],
-
-        string: [
-          [/[^\\"]+/, "string"],
-          [/@escapes/, "string.escape"],
-          [/\\./, "string.escape.invalid"],
-          [/"/, "string", "@pop"],
-        ],
-
-        whitespace: [
-          [/[ \t\r\n]+/, ""],
-          [/\/\*/, "comment", "@comment"],
-          [/\/\/.*$/, "comment"],
-        ],
-      },
-    });
-
-    // Define the language configuration (brackets, comments, etc.)
-    monaco.languages.setLanguageConfiguration("uvl", {
-      comments: {
-        lineComment: "//",
-        blockComment: ["/*", "*/"],
-      },
-      brackets: [
-        ["{", "}"],
-        ["[", "]"],
-        ["(", ")"],
-      ],
-      autoClosingPairs: [
-        { open: "{", close: "}" },
-        { open: "[", close: "]" },
-        { open: "(", close: ")" },
-        { open: '"', close: '"' },
-      ],
-    });
-  }
-
+  // eslint-disable-next-line no-unused-vars
   const handleResize = (e, data) => {
     e.preventDefault();
     editorRef.current.layout({});
@@ -159,9 +60,25 @@ process_uvl_file('uvlfile.uvl')
     setIsValid(result.toJs());
   }
 
+  async function executeAction(action) {
+    if (isValid && !isValid[0] && !isValid[1]) {
+      const result = await pyodide.runPythonAsync(
+        `
+execute_pysat_operation('${action.value}')
+        `
+      );
+      if (result.toJs) {
+        setOutput({ label: action.label, result: result.toJs() });
+      } else {
+        setOutput({ label: action.label, result });
+      }
+    }
+  }
+
   return (
-    <div className="flex flex-row h-full w-full">
+    <div className="flex flex-col h-full w-full">
       {/* Top Section */}
+
       <div className="flex flex-1 p-2 gap-2">
         {/* Left Side Panel */}
         <ResizableBox
@@ -170,43 +87,32 @@ process_uvl_file('uvlfile.uvl')
           axis="x"
           minConstraints={[150, Infinity]}
           maxConstraints={[400, Infinity]}
-          className="bg-gray-800 text-white p-4 resize-handle-right rounded-lg"
+          className="bg-neutral-300 text-neutral-900 p-4 resize-handle-right rounded-lg"
           handle={
             <div className="absolute right-0 top-0 h-full w-2 cursor-ew-resize" />
           }
         >
-          <p>Left Side Panel</p>
+          <p>Features</p>
         </ResizableBox>
 
         {/* Center Section (Text Editor + Bottom Panel) */}
         <div className="flex flex-1 flex-col">
+          {/* Toolbar */}
+          <Toolbar>
+            <DropdownMenu
+              buttonLabel={"SAT Operations"}
+              options={SATOperations}
+              executeAction={executeAction}
+            ></DropdownMenu>
+          </Toolbar>
+
           {/* Text Editor */}
-          <div className="flex-1 bg-gray-100 text-black p-4">
-            <div className="grid grid-cols-1 grid-rows-1 h-full w-full rounded-lg">
-              <Editor
-                defaultLanguage="uvl"
-                value={defaultCode}
-                onMount={handleEditorDidMount}
-                onChange={validateModel}
-              />
-            </div>
-          </div>
+
+          <UVLEditor editorRef={editorRef} validateModel={validateModel} />
           {/* Bottom Panel */}
-          <ResizableBox
-            width={Infinity}
-            height={150}
-            axis="y"
-            minConstraints={[Infinity, 100]}
-            maxConstraints={[Infinity, 300]}
-            className="bg-gray-700 text-white p-4 resize-handle-top rounded-lg"
-            handle={
-              <div className="absolute top-0 left-0 w-full h-2 cursor-ns-resize" />
-            }
-            resizeHandles={["n"]}
-            onResize={handleResize}
-          >
-            <p>Bottom Panel</p>
-          </ResizableBox>
+          <ExecutionOutput handleResize={handleResize}>
+            {output}
+          </ExecutionOutput>
         </div>
         {/* Right Side Panel */}
         <ModelInformation onValidateModel={validateModel} isValid={isValid} />

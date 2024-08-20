@@ -24,6 +24,8 @@ from antlr4 import CommonTokenStream, FileStream
 from uvl.UVLCustomLexer import UVLCustomLexer
 from uvl.UVLPythonParser import UVLPythonParser
 from antlr4.error.ErrorListener import ErrorListener
+from flamapy.core.discover import DiscoverMetamodels
+
 
 fm = None
 
@@ -72,22 +74,9 @@ def satisfiable(file_content):
   result=fm.satisfiable()
   return result
 
-def is_a_valid_model(file_content):
-    with open("uvlfile.uvl", "w") as text_file:
-        text_file.write(file_content)
-
-    try:
-        global fm
-        fm = FLAMAFeatureModel("uvlfile.uvl")
-        return True
-    
-    except Exception as exception:
-        print(exception)
-        return False
         
 def get_model_information():
     model_information = dict()
-    print(fm)
 
     model_information['Average Branching Factor'] = fm.average_branching_factor()
     model_information['Leaf Number'] = fm.count_leafs()
@@ -97,6 +86,21 @@ def get_model_information():
     model_information['Core Features'] = fm.core_features()
     model_information['Leaf Features'] = fm.leaf_features()
     return model_information
+
+def execute_pysat_operation(operation: str):
+    dm = DiscoverMetamodels()
+    feature_model = dm.use_transformation_t2m("uvlfile.uvl", 'fm')
+    if operation in ['PySATConflictDetection', 'PySATDiagnosis']:
+        sat_model = dm.use_transformation_m2m(feature_model, "pysat_diagnosis")
+    else:
+        sat_model = dm.use_transformation_m2m(feature_model, "pysat")
+    # Get the operation
+    operation = dm.get_operation(sat_model, operation)
+    # Execute the operation
+    operation.execute(sat_model)
+    # Get and print the result
+    result = operation.get_result()
+    return result
 `);
 
   return pyodideInstance;

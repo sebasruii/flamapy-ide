@@ -45,13 +45,15 @@ const ModelInformation = ({
       }
       resizeHandles={["w"]}
     >
-      <button
-        className="w-full bg-[#356C99] text-white py-2 px-4 rounded active:bg-[#0D486C] shadow-lg"
-        onClick={onValidateModel}
-      >
-        {buttonText}
-      </button>
-      {displayValidity(isValid)}
+      <div>
+        <button
+          className="w-full bg-[#356C99] text-white py-2 px-4 rounded active:bg-[#0D486C] shadow-lg"
+          onClick={onValidateModel}
+        >
+          {buttonText}
+        </button>
+        {displayValidity(isValid)}
+      </div>
     </ResizableBox>
   );
 };
