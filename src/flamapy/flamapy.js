@@ -101,7 +101,15 @@ def execute_pysat_operation(operation: str):
     # Get and print the result
     result = operation.get_result()
     return result
+
+def execute_export_transformation(transformation: str):
+    dm = DiscoverMetamodels()
+    feature_model = dm.use_transformation_t2m("uvlfile.uvl",'fm') 
+    return dm.use_transformation_m2t(feature_model,'export/model.{}'.format(transformation))
+
 `);
+
+  pyodideInstance.FS.mkdir("export");
 
   return pyodideInstance;
 }

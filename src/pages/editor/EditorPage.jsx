@@ -7,6 +7,7 @@ import ExecutionOutput from "../../components/ExecutionOutput";
 import UVLEditor from "../../components/UVLEditor";
 import Toolbar from "../../components/Toolbar";
 import DropdownMenu from "../../components/DropdownMenu";
+import { saveAs } from "file-saver";
 
 function EditorPage() {
   const [pyodide, setPyodide] = useState(null);
@@ -26,6 +27,14 @@ function EditorPage() {
     { label: "False optional features", value: "PySATFalseOptionalFeatures" },
     { label: "Satisfiable", value: "PySATSatisfiable" },
     { label: "Sampling", value: "PySATSampling" },
+  ];
+
+  const exportOperations = [
+    { label: "AFM", value: "afm" },
+    { label: "Glencoe", value: "gfm.json" },
+    { label: "JSON", value: "json" },
+    { label: "SPLOT", value: "sxfm" },
+    { label: "Download UVL", value: "uvl" },
   ];
 
   useEffect(() => {
@@ -75,6 +84,20 @@ execute_pysat_operation('${action.value}')
     }
   }
 
+  async function downloadFile(action) {
+    if (isValid && !isValid[0] && !isValid[1]) {
+      const result = await pyodide.runPythonAsync(
+        `
+execute_export_transformation('${action.value}')
+        `
+      );
+      const file = new File([result], `model.${action.value}`, {
+        type: "text/plain;charset=utf-8",
+      });
+      saveAs(file);
+    }
+  }
+
   return (
     <div className="flex flex-col h-full w-full">
       {/* Top Section */}
@@ -104,6 +127,11 @@ execute_pysat_operation('${action.value}')
               options={SATOperations}
               executeAction={executeAction}
             ></DropdownMenu>
+            <DropdownMenu
+              buttonLabel={"Export To"}
+              options={exportOperations}
+              executeAction={downloadFile}
+            />
           </Toolbar>
 
           {/* Text Editor */}
