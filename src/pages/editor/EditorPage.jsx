@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { loadFlamapy } from "../../flamapy/flamapy";
 import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
 import ModelInformation from "../../components/ModelInformation";
@@ -10,7 +9,7 @@ import DropdownMenu from "../../components/DropdownMenu";
 import { saveAs } from "file-saver";
 
 function EditorPage() {
-  const [pyodide, setPyodide] = useState(null);
+  const [worker, setWorker] = useState(null);
   const [isValid, setIsValid] = useState(false);
   const [output, setOutput] = useState({
     label: "Execution results",
@@ -38,15 +37,16 @@ function EditorPage() {
   ];
 
   useEffect(() => {
-    async function initializePyodide() {
-      try {
-        const pyodideInstance = await loadFlamapy();
-        setPyodide(pyodideInstance);
-      } catch (error) {
-        console.log(error);
-      }
+    try {
+      const flamapyWorker = new Worker("/webworker.js");
+
+      setWorker(flamapyWorker);
+      return () => {
+        flamapyWorker.terminate();
+      };
+    } catch (error) {
+      console.error(error);
     }
-    initializePyodide();
   }, []);
 
   // eslint-disable-next-line no-unused-vars
@@ -56,45 +56,48 @@ function EditorPage() {
   };
 
   async function validateModel() {
-    const code = editorRef.current.getValue();
-    pyodide.globals.set("code", code);
-    const result = await pyodide.runPythonAsync(
-      `
-with open("uvlfile.uvl", "w") as text_file:
-    text_file.write(code)
+    if (worker) {
+      const code = editorRef.current.getValue();
+      worker.postMessage({ action: "validateModel", data: code });
 
-process_uvl_file('uvlfile.uvl')
-    `
-    );
-    setIsValid(result.toJs());
+      worker.onmessage = (event) => {
+        if (event.data.results !== undefined) {
+          setIsValid(event.data.results);
+        } else if (event.data.error) {
+          console.error("Error:", event.data.error);
+        }
+      };
+    }
   }
 
   async function executeAction(action) {
-    if (isValid && !isValid[0] && !isValid[1]) {
-      const result = await pyodide.runPythonAsync(
-        `
-execute_pysat_operation('${action.value}')
-        `
-      );
-      if (result.toJs) {
-        setOutput({ label: action.label, result: result.toJs() });
-      } else {
-        setOutput({ label: action.label, result });
-      }
+    if (worker) {
+      worker.postMessage({ action: "executeAction", data: action });
+
+      worker.onmessage = (event) => {
+        if (event.data.results !== undefined) {
+          setOutput(event.data.results);
+        } else if (event.data.error) {
+          console.error("Error:", event.data.error);
+        }
+      };
     }
   }
 
   async function downloadFile(action) {
-    if (isValid && !isValid[0] && !isValid[1]) {
-      const result = await pyodide.runPythonAsync(
-        `
-execute_export_transformation('${action.value}')
-        `
-      );
-      const file = new File([result], `model.${action.value}`, {
-        type: "text/plain;charset=utf-8",
-      });
-      saveAs(file);
+    if (worker) {
+      worker.postMessage({ action: "downloadFile", data: action });
+
+      worker.onmessage = (event) => {
+        if (event.data.results !== undefined) {
+          const file = new File([event.data.results], `model.${action.value}`, {
+            type: "text/plain;charset=utf-8",
+          });
+          saveAs(file);
+        } else if (event.data.error) {
+          console.error("Error:", event.data.error);
+        }
+      };
     }
   }
 

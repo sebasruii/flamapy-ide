@@ -5,7 +5,7 @@ import ModelProperties from "./ModelProperties";
 function displayValidity(isValid) {
   if (isValid) {
     if (isValid[0] === false && isValid[1] === false) {
-      const modelInformation = Array.from(isValid[2].entries());
+      const modelInformation = isValid[2];
 
       return <ModelProperties modelProperties={modelInformation} />;
     } else if (isValid[0] === true) {
