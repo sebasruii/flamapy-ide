@@ -10,10 +10,12 @@ import { saveAs } from "file-saver";
 
 function EditorPage() {
   const [worker, setWorker] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const [output, setOutput] = useState({
-    label: "Execution results",
-    result: "Here you will see the result of executing an operation",
+    label: "Loading Flamapy...",
+    result: "FlamapyIDE is starting",
   });
 
   const editorRef = useRef(null);
@@ -36,11 +38,26 @@ function EditorPage() {
     { label: "Download UVL", value: "uvl" },
   ];
 
+  function initializeWorker() {
+    const flamapyWorker = new Worker("/webworker.js");
+    flamapyWorker.onmessage = (event) => {
+      if (event.data.status === "loaded") {
+        setIsLoaded(true);
+        setOutput({
+          label: "Flamapy is ready",
+          result: "Here you will see the result of executing an operation",
+        });
+      } else {
+        console.error(event.data.exeption);
+      }
+    };
+    setWorker(flamapyWorker);
+    return flamapyWorker;
+  }
+
   useEffect(() => {
     try {
-      const flamapyWorker = new Worker("/webworker.js");
-
-      setWorker(flamapyWorker);
+      const flamapyWorker = initializeWorker();
       return () => {
         flamapyWorker.terminate();
       };
@@ -56,7 +73,7 @@ function EditorPage() {
   };
 
   async function validateModel() {
-    if (worker) {
+    if (isLoaded) {
       const code = editorRef.current.getValue();
       worker.postMessage({ action: "validateModel", data: code });
 
@@ -71,35 +88,39 @@ function EditorPage() {
   }
 
   async function executeAction(action) {
-    if (worker) {
+    if (isLoaded) {
+      if (!isValid || isValid[0] || isValid[1]) {
+        await validateModel();
+      }
       worker.postMessage({ action: "executeAction", data: action });
-
+      setIsRunning(true);
+      setOutput({ label: action.label, result: "Executing operation" });
       worker.onmessage = (event) => {
         if (event.data.results !== undefined) {
           setOutput(event.data.results);
         } else if (event.data.error) {
           console.error("Error:", event.data.error);
         }
+        setIsRunning(false);
       };
     }
   }
 
   function interruptExecution() {
-    if (worker) {
+    if (isLoaded) {
       worker.terminate();
-
+      setIsLoaded(false);
+      setIsRunning(false);
       setOutput({
         label: "Execution has been interrupted",
         result: "Re-starting Flamapy...",
       });
-
-      const flamapyWorker = new Worker("/webworker.js");
-      setWorker(flamapyWorker);
+      initializeWorker();
     }
   }
 
   async function downloadFile(action) {
-    if (worker) {
+    if (isLoaded) {
       worker.postMessage({ action: "downloadFile", data: action });
 
       worker.onmessage = (event) => {

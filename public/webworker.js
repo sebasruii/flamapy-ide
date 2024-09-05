@@ -167,7 +167,9 @@ async function loadFlamapyWorker() {
   self.flamapy = new Flamapy();
   await self.flamapy.loadFlamapy();
 }
-let flamapyReadyPromise = loadFlamapyWorker();
+let flamapyReadyPromise = loadFlamapyWorker()
+  .then(() => self.postMessage({ status: "loaded" }))
+  .catch((exception) => self.postMessage({ status: "error", exception }));
 
 self.onmessage = async (event) => {
   await flamapyReadyPromise;
