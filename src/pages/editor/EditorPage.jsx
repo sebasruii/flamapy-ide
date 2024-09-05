@@ -84,6 +84,20 @@ function EditorPage() {
     }
   }
 
+  function interruptExecution() {
+    if (worker) {
+      worker.terminate();
+
+      setOutput({
+        label: "Execution has been interrupted",
+        result: "Re-starting Flamapy...",
+      });
+
+      const flamapyWorker = new Worker("/webworker.js");
+      setWorker(flamapyWorker);
+    }
+  }
+
   async function downloadFile(action) {
     if (worker) {
       worker.postMessage({ action: "downloadFile", data: action });
@@ -141,7 +155,10 @@ function EditorPage() {
 
           <UVLEditor editorRef={editorRef} validateModel={validateModel} />
           {/* Bottom Panel */}
-          <ExecutionOutput handleResize={handleResize}>
+          <ExecutionOutput
+            handleResize={handleResize}
+            handleStop={interruptExecution}
+          >
             {output}
           </ExecutionOutput>
         </div>

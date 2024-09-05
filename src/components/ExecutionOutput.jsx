@@ -9,6 +9,7 @@ const ExecutionOutput = ({
   maxConstraints = [Infinity, 300],
   className = "bg-gray-700 text-white p-4 resize-handle-top rounded-lg",
   handleResize,
+  handleStop,
   children,
 }) => {
   return (
@@ -26,6 +27,12 @@ const ExecutionOutput = ({
       onResize={handleResize}
     >
       <div className="overflow-auto h-full">
+        <button
+          onClick={handleStop}
+          className="absolute top-0 right-0 m-2 p-2 bg-red-600 text-white rounded"
+        >
+          Stop
+        </button>
         <div className="font-semibold text-xl">{children.label}</div>
         <div className="font-mono text-sm">
           {children.result == null ||

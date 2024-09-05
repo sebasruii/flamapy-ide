@@ -106,6 +106,8 @@ class Flamapy {
       operation.execute(sat_model)
       # Get and print the result
       result = operation.get_result()
+      if type(result) is list:
+          return [str(conf) for conf in result]
       return result
   
   def execute_export_transformation(transformation: str):
