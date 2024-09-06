@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useEffect, useState, useRef } from "react";
 import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
@@ -8,14 +9,18 @@ import Toolbar from "../../components/Toolbar";
 import DropdownMenu from "../../components/DropdownMenu";
 import { saveAs } from "file-saver";
 
-function EditorPage() {
+function EditorPage({ selectedFile }) {
   const [worker, setWorker] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isImported, setIsImported] = useState(false);
   const [isValid, setIsValid] = useState(false);
+  const [lastOutputHeight, setLastOutputHeight] = useState(150);
   const [output, setOutput] = useState({
     label: "Loading Flamapy...",
-    result: "FlamapyIDE is starting",
+    result: selectedFile
+      ? `Importing model '${selectedFile.name}'`
+      : "FlamapyIDE is starting",
   });
 
   const editorRef = useRef(null);
@@ -58,6 +63,7 @@ function EditorPage() {
   useEffect(() => {
     try {
       const flamapyWorker = initializeWorker();
+
       return () => {
         flamapyWorker.terminate();
       };
@@ -66,10 +72,43 @@ function EditorPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (selectedFile && isLoaded && !isImported) {
+      const reader = new FileReader();
+      const fileName = selectedFile.name;
+      const fileExtension = fileName.split(".").pop();
+      reader.onload = (e) => {
+        const fileContent = e.target.result; // Read file content as text
+        if (fileExtension === "uvl") {
+          editorRef.current.setValue(fileContent);
+          editorRef.current.layout();
+          setIsImported(true);
+        } else {
+          worker.postMessage({
+            action: "importModel",
+            data: { fileContent, fileExtension },
+          });
+
+          worker.onmessage = async (event) => {
+            if (event.data.results !== undefined) {
+              editorRef.current.setValue(event.data.results);
+              await editorRef.current.layout();
+              setIsImported(true);
+            }
+          };
+        }
+      };
+      reader.readAsText(selectedFile);
+    }
+  }, [isLoaded, worker, isImported, selectedFile]);
+
   // eslint-disable-next-line no-unused-vars
   const handleResize = (e, data) => {
     e.preventDefault();
-    editorRef.current.layout({});
+    if (data.size.height !== lastOutputHeight) {
+      editorRef.current.layout({});
+      setLastOutputHeight(data.size.height);
+    }
   };
 
   async function validateModel() {

@@ -2,8 +2,7 @@
 
 import { Editor } from "@monaco-editor/react";
 
-function UVLEditor({ editorRef, validateModel }) {
-  const defaultCode = "";
+function UVLEditor({ editorRef, validateModel, defaultCode = "" }) {
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
     monaco.languages.register({ id: "uvl" });
