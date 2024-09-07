@@ -76,7 +76,11 @@ function EditorPage({ selectedFile }) {
     if (selectedFile && isLoaded && !isImported) {
       const reader = new FileReader();
       const fileName = selectedFile.name;
-      const fileExtension = fileName.split(".").pop();
+      const extensionIndexStart = fileName.indexOf(".") + 1;
+      const fileExtension = fileName.substring(
+        extensionIndexStart,
+        fileName.length
+      );
       reader.onload = (e) => {
         const fileContent = e.target.result; // Read file content as text
         if (fileExtension === "uvl") {

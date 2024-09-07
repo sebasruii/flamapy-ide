@@ -14,10 +14,10 @@ class Flamapy {
     await pyodideInstance.loadPackage("python-sat");
     await pyodideInstance.runPythonAsync(`
   import micropip
-  await micropip.install("flamapy/flamapy-2.0.0-py3-none-any.whl", deps=False)
-  await micropip.install("flamapy/flamapy_fw-2.0.0-py3-none-any.whl", deps=False)
-  await micropip.install("flamapy/flamapy_fm-2.0.0-py3-none-any.whl", deps=False)
-  await micropip.install("flamapy/flamapy_sat-2.0.0-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/flamapy-2.0.1-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/flamapy_fw-2.0.1-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/flamapy_fm-2.0.1-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/flamapy_sat-2.0.1-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/uvlparser-2.0.1-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/afmparser-1.0.3-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/antlr4_python3_runtime-4.13.1-py3-none-any.whl", deps=False)
@@ -31,6 +31,7 @@ class Flamapy {
   from uvl.UVLPythonParser import UVLPythonParser
   from antlr4.error.ErrorListener import ErrorListener
   from flamapy.core.discover import DiscoverMetamodels
+  from flamapy.metamodels.fm_metamodel.transformations import GlencoeReader, AFMReader, FeatureIDEReader, JSONReader, XMLReader
   
   
   fm = None
@@ -114,6 +115,24 @@ class Flamapy {
       dm = DiscoverMetamodels()
       feature_model = dm.use_transformation_t2m("uvlfile.uvl",'fm') 
       return dm.use_transformation_m2t(feature_model,'export/model.{}'.format(transformation))
+  
+  def execute_import_transformation(file_extension: str, file_content: str):
+    with open("import.{}".format(file_extension), "w") as text_file:
+        text_file.write(file_content)
+    dm = DiscoverMetamodels()
+    match(file_extension):
+        case 'gfm.json':
+            feature_model = GlencoeReader("import.gfm.json").transform()
+        case 'afm':
+            feature_model = AFMReader("import.afm").transform()
+        case 'fide':
+            feature_model = FeatureIDEReader("import.fide").transform()
+        case 'json':
+            feature_model = JSONReader("import.json").transform()
+        case 'xml':
+            feature_model = XMLReader("import.xml").transform()
+
+    return dm.use_transformation_m2t(feature_model,'uvlfile.uvl')
     `);
     pyodideInstance.FS.mkdir("export");
 
@@ -161,6 +180,16 @@ execute_export_transformation('${action.value}')
       return result;
     }
   }
+
+  async importModel(fileExtension, fileContent) {
+    this.pyodide.globals.set("file_content", fileContent);
+    const result = await this.pyodide.runPythonAsync(
+      `
+execute_import_transformation('${fileExtension}', file_content)
+      `
+    );
+    return result;
+  }
 }
 
 async function loadFlamapyWorker() {
@@ -185,10 +214,16 @@ self.onmessage = async (event) => {
       results = await self.flamapy.executeAction(data);
     } else if (action === "downloadFile") {
       results = await self.flamapy.downloadFile(data);
+    } else if (action === "importModel") {
+      results = await self.flamapy.importModel(
+        data.fileExtension,
+        data.fileContent
+      );
     }
 
     self.postMessage({ results, action });
   } catch (error) {
+    console.error(error);
     self.postMessage({ error: error.message, action });
   }
 };
