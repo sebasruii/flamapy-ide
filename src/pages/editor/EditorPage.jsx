@@ -13,7 +13,7 @@ function EditorPage({ selectedFile }) {
   const [worker, setWorker] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [isImported, setIsImported] = useState(false);
+  const [isImported, setIsImported] = useState(true);
   const [isValid, setIsValid] = useState(false);
   const [lastOutputHeight, setLastOutputHeight] = useState(150);
   const [output, setOutput] = useState({
@@ -32,7 +32,21 @@ function EditorPage({ selectedFile }) {
     { label: "Diagnosis", value: "PySATDiagnosis" },
     { label: "False optional features", value: "PySATFalseOptionalFeatures" },
     { label: "Satisfiable", value: "PySATSatisfiable" },
-    { label: "Sampling", value: "PySATSampling" },
+  ];
+  const BDDOperations = [
+    { label: "Configurations", value: "BDDConfigurations" },
+    { label: "Number of configurations", value: "BDDConfigurationsNumber" },
+    { label: "Dead features", value: "BDDDeadFeatures" },
+    { label: "Satisfiable", value: "BDDSatisfiable" },
+    { label: "Configuration distribution", value: "BDDProductDistribution" },
+    {
+      label: "Feature Inclusion Probability",
+      value: "BDDFeatureInclusionProbability",
+    },
+    { label: "Unique Features", value: "BDDUniqueFeatures" },
+    { label: "Homogeneity", value: "BDDHomogeneity" },
+    { label: "Variability", value: "BDDVariability" },
+    { label: "Variant Features", value: "BDDVariantFeatures" },
   ];
 
   const exportOperations = [
@@ -52,6 +66,7 @@ function EditorPage({ selectedFile }) {
           label: "Flamapy is ready",
           result: "Here you will see the result of executing an operation",
         });
+        if (selectedFile) setIsImported(false);
       } else {
         console.error(event.data.exeption);
       }
@@ -63,7 +78,6 @@ function EditorPage({ selectedFile }) {
   useEffect(() => {
     try {
       const flamapyWorker = initializeWorker();
-
       return () => {
         flamapyWorker.terminate();
       };
@@ -209,6 +223,11 @@ function EditorPage({ selectedFile }) {
               executeAction={executeAction}
             ></DropdownMenu>
             <DropdownMenu
+              buttonLabel={"BDD Operations"}
+              options={BDDOperations}
+              executeAction={executeAction}
+            ></DropdownMenu>
+            <DropdownMenu
               buttonLabel={"Export To"}
               options={exportOperations}
               executeAction={downloadFile}
@@ -222,6 +241,7 @@ function EditorPage({ selectedFile }) {
           <ExecutionOutput
             handleResize={handleResize}
             handleStop={interruptExecution}
+            isAwaiting={isRunning || !isImported || !isLoaded}
           >
             {output}
           </ExecutionOutput>

@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { ResizableBox } from "react-resizable";
+import Spinner from "./Spinner";
 
 const ExecutionOutput = ({
   width = Infinity,
@@ -11,6 +12,7 @@ const ExecutionOutput = ({
   handleResize,
   handleStop,
   children,
+  isAwaiting,
 }) => {
   return (
     <ResizableBox
@@ -33,7 +35,15 @@ const ExecutionOutput = ({
         >
           Stop
         </button>
-        <div className="font-semibold text-xl">{children.label}</div>
+        <div className="flex items-center font-semibold text-xl">
+          {isAwaiting ? (
+            <>
+              <Spinner /> {children.label}
+            </>
+          ) : (
+            children.label
+          )}
+        </div>
         <div className="font-mono text-sm">
           {children.result == null ||
           (Array.isArray(children.result) && children.result.length === 0) ? (

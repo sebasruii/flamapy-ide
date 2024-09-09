@@ -18,6 +18,11 @@ class Flamapy {
   await micropip.install("flamapy/flamapy_fw-2.0.1-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/flamapy_fm-2.0.1-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/flamapy_sat-2.0.1-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/flamapy_bdd-2.0.1-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/dd-0.5.7-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/ply-3.11-py2.py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/astutils-0.0.6-py3-none-any.whl", deps=False)
+  await micropip.install("flamapy/graphviz-0.20-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/uvlparser-2.0.1-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/afmparser-1.0.3-py3-none-any.whl", deps=False)
   await micropip.install("flamapy/antlr4_python3_runtime-4.13.1-py3-none-any.whl", deps=False)
@@ -94,17 +99,23 @@ class Flamapy {
       model_information['Leaf Features'] = fm.leaf_features()
       return model_information
   
-  def execute_pysat_operation(operation: str):
+  def execute_pysat_operation(name: str):
       dm = DiscoverMetamodels()
       feature_model = dm.use_transformation_t2m("uvlfile.uvl", 'fm')
-      if operation in ['PySATConflictDetection', 'PySATDiagnosis']:
-          sat_model = dm.use_transformation_m2m(feature_model, "pysat_diagnosis")
-      else:
-          sat_model = dm.use_transformation_m2m(feature_model, "pysat")
-      # Get the operation
-      operation = dm.get_operation(sat_model, operation)
-      # Execute the operation
-      operation.execute(sat_model)
+      if 'BDD' in name:
+          bdd_model = dm.use_transformation_m2m(feature_model, 'bdd')
+          operation = dm.get_operation(bdd_model, name)
+          operation.execute(bdd_model)
+
+      elif 'PySAT' in name:
+          if name in ['PySATConflictDetection', 'PySATDiagnosis']:
+              sat_model = dm.use_transformation_m2m(feature_model, "pysat_diagnosis")
+          else:
+              sat_model = dm.use_transformation_m2m(feature_model, "pysat")
+          # Get the operation
+          operation = dm.get_operation(sat_model, name)
+          # Execute the operation
+          operation.execute(sat_model)
       # Get and print the result
       result = operation.get_result()
       if type(result) is list:
