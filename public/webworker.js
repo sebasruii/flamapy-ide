@@ -28,7 +28,7 @@ class Flamapy {
   await micropip.install("flamapy/antlr4_python3_runtime-4.13.1-py3-none-any.whl", deps=False)
   
   
-  import js
+  import js, json
   from flamapy.interfaces.python import FLAMAFeatureModel
   from flamapy.core.exceptions import FlamaException
   from antlr4 import CommonTokenStream, FileStream
@@ -37,6 +37,8 @@ class Flamapy {
   from antlr4.error.ErrorListener import ErrorListener
   from flamapy.core.discover import DiscoverMetamodels
   from flamapy.metamodels.fm_metamodel.transformations import GlencoeReader, AFMReader, FeatureIDEReader, JSONReader, XMLReader
+  from flamapy.metamodels.configuration_metamodel.models import Configuration
+
   
   
   fm = None
@@ -144,6 +146,44 @@ class Flamapy {
             feature_model = XMLReader("import.xml").transform()
 
     return dm.use_transformation_m2t(feature_model,'uvlfile.uvl')
+
+  def feature_tree(node):
+    res = dict()
+    res['name'] = node.name
+    if node.get_children():
+        res['children'] = [feature_tree(child) for child in node.get_children()]
+    return res
+  
+  def get_features():
+    if fm:
+        features = [feature.name for feature in fm.fm_model.get_features()]
+        return features
+
+  def execute_configurator_operation(name: str, conf):
+    dm = DiscoverMetamodels()
+    feature_model = dm.use_transformation_t2m("uvlfile.uvl", 'fm')
+    configuration = Configuration(conf)
+    if 'BDD' in name:
+        bdd_model = dm.use_transformation_m2m(feature_model, 'bdd')
+        operation = dm.get_operation(bdd_model, name)
+        operation.set_configuration(configuration)
+        operation.execute(bdd_model)
+
+    elif 'PySAT' in name:
+        if name in ['PySATConflictDetection', 'PySATDiagnosis']:
+            sat_model = dm.use_transformation_m2m(feature_model, "pysat_diagnosis")
+        else:
+            sat_model = dm.use_transformation_m2m(feature_model, "pysat")
+        # Get the operation
+        operation = dm.get_operation(sat_model, name)
+        operation.set_configuration(configuration)
+        # Execute the operation
+        operation.execute(sat_model)
+    # Get and print the result
+    result = operation.get_result()
+    if type(result) is list:
+        return [str(conf) for conf in result]
+    return result
     `);
     pyodideInstance.FS.mkdir("export");
 
@@ -201,6 +241,42 @@ execute_import_transformation('${fileExtension}', file_content)
     );
     return result;
   }
+
+  async getfeatureTree() {
+    const jsonResult = await this.pyodide.runPythonAsync(
+      `
+json.dumps(feature_tree(fm.fm_model.root))
+      `
+    );
+    const result = JSON.parse(jsonResult);
+    return result;
+  }
+
+  async getFeatures() {
+    const result = await this.pyodide.runPythonAsync(
+      `
+get_features()
+      `
+    );
+    return result;
+  }
+
+  async executeActionWithConf(data) {
+    if (this.isValid && !this.isValid[0] && !this.isValid[1]) {
+      this.pyodide.globals.set("configuration", data.configuration);
+
+      const result = await this.pyodide.runPythonAsync(
+        `
+execute_configurator_operation('${data.action.value}', configuration.to_py())
+        `
+      );
+      if (result.toJs) {
+        return { label: data.action.label, result: result.toJs() };
+      } else {
+        return { label: data.action.label, result };
+      }
+    }
+  }
 }
 
 async function loadFlamapyWorker() {
@@ -230,6 +306,12 @@ self.onmessage = async (event) => {
         data.fileExtension,
         data.fileContent
       );
+    } else if (action === "getFeatureTree") {
+      results = await self.flamapy.getfeatureTree();
+    } else if (action === "getFeatures") {
+      results = await self.flamapy.getFeatures();
+    } else if (action === "executeActionWithConf") {
+      results = await self.flamapy.executeActionWithConf(data);
     }
 
     self.postMessage({ results, action });

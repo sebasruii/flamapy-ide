@@ -1,6 +1,5 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useState, useRef } from "react";
-import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
 import ModelInformation from "../../components/ModelInformation";
 import ExecutionOutput from "../../components/ExecutionOutput";
@@ -8,6 +7,7 @@ import UVLEditor from "../../components/UVLEditor";
 import Toolbar from "../../components/Toolbar";
 import DropdownMenu from "../../components/DropdownMenu";
 import { saveAs } from "file-saver";
+import TreeView from "../../components/FeatureTree";
 
 function EditorPage({ selectedFile }) {
   const [worker, setWorker] = useState(null);
@@ -22,6 +22,7 @@ function EditorPage({ selectedFile }) {
       ? `Importing model '${selectedFile.name}'`
       : "FlamapyIDE is starting",
   });
+  const [featureTree, setFeatureTree] = useState(null);
 
   const editorRef = useRef(null);
 
@@ -120,6 +121,20 @@ function EditorPage({ selectedFile }) {
     }
   }, [isLoaded, worker, isImported, selectedFile]);
 
+  useEffect(() => {
+    if (isValid && !isValid[0] && !isValid[1]) {
+      worker.postMessage({
+        action: "getFeatureTree",
+      });
+
+      worker.onmessage = (event) => {
+        if (event.data.results !== undefined) {
+          setFeatureTree(event.data.results);
+        }
+      };
+    }
+  }, [isValid, worker]);
+
   // eslint-disable-next-line no-unused-vars
   const handleResize = (e, data) => {
     e.preventDefault();
@@ -150,6 +165,28 @@ function EditorPage({ selectedFile }) {
         await validateModel();
       }
       worker.postMessage({ action: "executeAction", data: action });
+      setIsRunning(true);
+      setOutput({ label: action.label, result: "Executing operation" });
+      worker.onmessage = (event) => {
+        if (event.data.results !== undefined) {
+          setOutput(event.data.results);
+        } else if (event.data.error) {
+          console.error("Error:", event.data.error);
+        }
+        setIsRunning(false);
+      };
+    }
+  }
+
+  async function executeActionWithConf(action, configuration) {
+    if (isLoaded) {
+      if (!isValid || isValid[0] || isValid[1]) {
+        await validateModel();
+      }
+      worker.postMessage({
+        action: "executeActionWithConf",
+        data: { action, configuration },
+      });
       setIsRunning(true);
       setOutput({ label: action.label, result: "Executing operation" });
       worker.onmessage = (event) => {
@@ -199,19 +236,10 @@ function EditorPage({ selectedFile }) {
 
       <div className="flex flex-1 p-2 gap-2">
         {/* Left Side Panel */}
-        <ResizableBox
-          width={200}
-          height={Infinity}
-          axis="x"
-          minConstraints={[150, Infinity]}
-          maxConstraints={[400, Infinity]}
-          className="bg-neutral-300 text-neutral-900 p-4 resize-handle-right rounded-lg"
-          handle={
-            <div className="absolute right-0 top-0 h-full w-2 cursor-ew-resize" />
-          }
-        >
-          <p>Features</p>
-        </ResizableBox>
+        <TreeView
+          treeData={featureTree}
+          executeAction={executeActionWithConf}
+        />
 
         {/* Center Section (Text Editor + Bottom Panel) */}
         <div className="flex flex-1 flex-col">

@@ -14,7 +14,7 @@ const DropdownMenu = ({ options, buttonLabel, executeAction }) => {
   };
 
   return (
-    <div className="relative inline-block w-52">
+    <div className="relative inline-block w-max">
       <button
         onClick={handleToggle}
         className="w-full bg-[#356C99] text-white py-2 px-4 rounded shadow-lg flex justify-between items-center"
