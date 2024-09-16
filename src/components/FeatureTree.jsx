@@ -45,7 +45,7 @@ const TreeNode = ({ node, statusMap, setStatusMap }) => {
   };
 
   return (
-    <div className="ml-4">
+    <div className="ml-4 mt-2">
       {/* Node Name with expand/collapse toggle */}
       <div className="flex justify-between items-center">
         <div className="flex items-center">
@@ -103,7 +103,7 @@ const TreeNode = ({ node, statusMap, setStatusMap }) => {
 // TreeView component to render the full tree
 const TreeView = ({ treeData, executeAction }) => {
   const SATOperations = [
-    { label: "Test configuration", value: "PySATSatisfiableConfiguration" },
+    { label: "Valid Configuration", value: "PySATSatisfiableConfiguration" },
   ];
 
   // State to track the status of each node

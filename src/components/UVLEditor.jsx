@@ -2,7 +2,7 @@
 
 import { Editor } from "@monaco-editor/react";
 
-function UVLEditor({ editorRef, validateModel, defaultCode = "" }) {
+function UVLEditor({ editorRef, validateModel, defaultCode = "", hide }) {
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
     monaco.languages.register({ id: "uvl" });
@@ -116,7 +116,7 @@ function UVLEditor({ editorRef, validateModel, defaultCode = "" }) {
   }
 
   return (
-    <div className="flex-1 bg-gray-100 text-black p-4">
+    <div className={`flex-1 bg-gray-100 text-black p-4 ${hide && "hidden"}`}>
       <div className="grid grid-cols-1 grid-rows-1 h-full w-full rounded-lg">
         <Editor
           defaultLanguage="uvl"

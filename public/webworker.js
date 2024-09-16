@@ -150,7 +150,13 @@ class Flamapy {
   def feature_tree(node):
     res = dict()
     res['name'] = node.name
+    res['attributes'] = dict()
+    res['attributes']['isMandatory'] = node.is_mandatory()
+    res['attributes']['isOptional'] = node.is_optional()
+    res['attributes']['isAbstract'] = node.is_abstract
     if node.get_children():
+        res['attributes']['isAlternativeGroup'] = node.is_alternative_group()
+        res['attributes']['isOrGroup'] = node.is_or_group()
         res['children'] = [feature_tree(child) for child in node.get_children()]
     return res
   

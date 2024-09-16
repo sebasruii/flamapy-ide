@@ -8,6 +8,7 @@ import Toolbar from "../../components/Toolbar";
 import DropdownMenu from "../../components/DropdownMenu";
 import { saveAs } from "file-saver";
 import TreeView from "../../components/FeatureTree";
+import FeatureModelVisualization from "../../components/FeatureModelVisualization";
 
 function EditorPage({ selectedFile }) {
   const [worker, setWorker] = useState(null);
@@ -23,6 +24,7 @@ function EditorPage({ selectedFile }) {
       : "FlamapyIDE is starting",
   });
   const [featureTree, setFeatureTree] = useState(null);
+  const [isEditorVisible, setIsEditorVisible] = useState(true); // State to track which component is visible
 
   const editorRef = useRef(null);
 
@@ -230,6 +232,10 @@ function EditorPage({ selectedFile }) {
     }
   }
 
+  const toggleView = () => {
+    setIsEditorVisible(!isEditorVisible);
+  };
+
   return (
     <div className="flex flex-col h-full w-full">
       {/* Top Section */}
@@ -260,11 +266,24 @@ function EditorPage({ selectedFile }) {
               options={exportOperations}
               executeAction={downloadFile}
             />
+            <button
+              onClick={toggleView} // Toggle view on button click
+              className="bg-blue-500 text-white p-2 rounded"
+            >
+              {isEditorVisible ? "View Graph" : "View code"}
+            </button>
           </Toolbar>
+          {/* Text Editor or feature model */}
+          <UVLEditor
+            editorRef={editorRef}
+            validateModel={validateModel}
+            defaultCode={editorRef?.current?.getValue()}
+            hide={!isEditorVisible}
+          />
+          {!isEditorVisible && (
+            <FeatureModelVisualization treeData={featureTree} />
+          )}
 
-          {/* Text Editor */}
-
-          <UVLEditor editorRef={editorRef} validateModel={validateModel} />
           {/* Bottom Panel */}
           <ExecutionOutput
             handleResize={handleResize}
