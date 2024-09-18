@@ -155,6 +155,11 @@ export default function FeatureModelVisualization({ treeData }) {
     document.body.removeChild(downloadLink);
   };
 
+  const straightPathFunc = (linkDatum) => {
+    const { source, target } = linkDatum;
+    return `M${source.x},${source.y + 30}L${target.x},${target.y - 30}`;
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full relative">
       <button
@@ -175,7 +180,7 @@ export default function FeatureModelVisualization({ treeData }) {
             />
           )}
           orientation="vertical"
-          pathFunc={"straight"}
+          pathFunc={straightPathFunc}
         />
       </div>
     </div>
