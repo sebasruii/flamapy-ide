@@ -24,7 +24,7 @@ function EditorPage({ selectedFile }) {
       : "FlamapyIDE is starting",
   });
   const [featureTree, setFeatureTree] = useState(null);
-  const [isEditorVisible, setIsEditorVisible] = useState(true); // State to track which component is visible
+  const [isEditorVisible, setIsEditorVisible] = useState(true);
 
   const editorRef = useRef(null);
 
@@ -99,7 +99,7 @@ function EditorPage({ selectedFile }) {
         fileName.length
       );
       reader.onload = (e) => {
-        const fileContent = e.target.result; // Read file content as text
+        const fileContent = e.target.result;
         if (fileExtension === "uvl") {
           editorRef.current.setValue(fileContent);
           editorRef.current.layout();
@@ -247,7 +247,7 @@ function EditorPage({ selectedFile }) {
           executeAction={executeActionWithConf}
         />
 
-        {/* Center Section (Text Editor + Bottom Panel) */}
+        {/* Center Section (Text Editor/Feature Model + Bottom Panel) */}
         <div className="flex flex-1 flex-col">
           {/* Toolbar */}
           <Toolbar>
@@ -267,7 +267,7 @@ function EditorPage({ selectedFile }) {
               executeAction={downloadFile}
             />
             <button
-              onClick={toggleView} // Toggle view on button click
+              onClick={toggleView}
               className="bg-blue-500 text-white p-2 rounded"
             >
               {isEditorVisible ? "View Graph" : "View code"}

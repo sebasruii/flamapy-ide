@@ -4,9 +4,9 @@ import Tree from "react-d3-tree";
 
 // Function to draw an arc between the children
 const drawSemicircle = (rectWidth, rectHeight, isAlternative) => {
-  const radius = rectWidth / 4; // Make the radius half the width of the node
-  const startX = radius; // Start X position
-  const startY = rectHeight / 2; // Start Y position at the bottom of the rectangle
+  const radius = rectWidth / 4;
+  const startX = radius;
+  const startY = rectHeight / 2;
   const endX = -radius;
   const endY = rectHeight / 2;
 
@@ -25,15 +25,15 @@ const drawSemicircle = (rectWidth, rectHeight, isAlternative) => {
 const calculateTextWidth = (text, fontSize) => {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  context.font = `${fontSize}px sans-serif`; // Use the font family and size
+  context.font = `${fontSize}px sans-serif`;
   return context.measureText(text).width;
 };
 
 const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
   const rectWidth = 130;
   const rectHeight = 60;
-  const padding = 10; // Padding inside the rectangle
-  const availableWidth = rectWidth - 2 * padding; // Available space for the text
+  const padding = 10;
+  const availableWidth = rectWidth - 2 * padding;
 
   const isMandatory = nodeDatum.attributes?.isMandatory;
   const isOptional = nodeDatum.attributes?.isOptional;
@@ -42,25 +42,21 @@ const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
   const isAbstract = nodeDatum.attributes?.isAbstract;
 
   const nodeName = nodeDatum.name;
-  const defaultFontSize = 20; // Initial font size
+  const defaultFontSize = 20;
 
-  // State to store the dynamically calculated font size
   const [fontSize, setFontSize] = useState(defaultFontSize);
 
   useEffect(() => {
-    // Calculate the width of the text with the default font size
     const textWidth = calculateTextWidth(nodeName, defaultFontSize);
 
-    // If the text is too wide, calculate the new font size
     if (textWidth > availableWidth) {
       const newFontSize = (availableWidth / textWidth) * defaultFontSize;
-      setFontSize(newFontSize); // Set the new font size
+      setFontSize(newFontSize);
     } else {
-      setFontSize(defaultFontSize); // Keep the default font size
+      setFontSize(defaultFontSize);
     }
   }, [nodeName]);
 
-  // Calculate position for the mandatory black dot (intersection with parent edge)
   const dotPosition = { x: 0, y: -rectHeight / 2 };
 
   return (
@@ -74,7 +70,7 @@ const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
         fill={isAbstract ? "lightgray" : "lightblue"}
         stroke="blue"
         strokeWidth="1"
-        rx="10" // Rounded corners
+        rx="10"
         onClick={toggleNode}
       />
 
@@ -82,8 +78,8 @@ const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
       <text
         fill="black"
         x="0"
-        y="5" // Center text vertically inside the rectangle
-        textAnchor="middle" // Center text horizontally
+        y="5"
+        textAnchor="middle"
         style={{ fontSize: `${fontSize}px`, fontWeight: "lighter" }}
       >
         {nodeName}
@@ -91,20 +87,15 @@ const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
 
       {/* Render a black dot if the feature is mandatory */}
       {isMandatory && (
-        <circle
-          cx={dotPosition.x} // Positioned at the top middle of the rectangle
-          cy={dotPosition.y}
-          r={5} // Radius of the black dot
-          fill="black"
-        />
+        <circle cx={dotPosition.x} cy={dotPosition.y} r={5} fill="black" />
       )}
 
-      {/* Render a black dot if the feature is optional */}
+      {/* Render a white dot if the feature is optional */}
       {isOptional && (
         <circle
-          cx={dotPosition.x} // Positioned at the top middle of the rectangle
+          cx={dotPosition.x}
           cy={dotPosition.y}
-          r={5} // Radius of the black dot
+          r={5}
           fill="white"
           stroke="black"
         />
@@ -128,16 +119,15 @@ export default function FeatureModelVisualization({ treeData }) {
   const updateTreePosition = () => {
     if (containerRef.current) {
       const { width, height } = containerRef.current.getBoundingClientRect();
-      setTranslate({ x: width / 2, y: height / 4 }); // Center horizontally and place tree near top vertically
+      setTranslate({ x: width / 2, y: height / 4 });
     }
   };
 
   // Run on initial render and window resize to update the tree position
   useEffect(() => {
-    updateTreePosition(); // Initial center
-    window.addEventListener("resize", updateTreePosition); // Recenter on resize
-
-    return () => window.removeEventListener("resize", updateTreePosition); // Cleanup on unmount
+    updateTreePosition();
+    window.addEventListener("resize", updateTreePosition);
+    return () => window.removeEventListener("resize", updateTreePosition);
   }, []);
 
   const exportSVG = () => {
@@ -176,15 +166,15 @@ export default function FeatureModelVisualization({ treeData }) {
       {/* Tree component from react-d3-tree */}
       <div ref={svgRef} className="w-full h-full">
         <Tree
-          data={treeData} // Pass the treeData prop to Tree component
-          translate={translate} // Use calculated translate for centering
+          data={treeData}
+          translate={translate}
           renderCustomNodeElement={(rd3tProps) => (
             <RenderRectSvgNode
               nodeDatum={rd3tProps.nodeDatum}
               toggleNode={rd3tProps.toggleNode}
             />
-          )} // Custom node renderer with rectangles, mandatory dot, and alternative group arc
-          orientation="vertical" // Vertical orientation
+          )}
+          orientation="vertical"
           pathFunc={"straight"}
         />
       </div>

@@ -5,9 +5,8 @@ import DropdownMenu from "./DropdownMenu";
 
 // TreeNode component for each node in the tree
 const TreeNode = ({ node, statusMap, setStatusMap }) => {
-  const [isExpanded, setIsExpanded] = useState(false); // Track if the node is expanded
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Initial status for the node is undefined
   const initialStatus = statusMap[node.name];
 
   // Handle expanding/collapsing of the tree node
@@ -32,13 +31,12 @@ const TreeNode = ({ node, statusMap, setStatusMap }) => {
         break;
     }
 
-    // Update the status map
     setStatusMap((prevStatusMap) => {
       const updatedMap = { ...prevStatusMap };
       if (newStatus === undefined) {
-        delete updatedMap[node.name]; // Remove entry if status is undefined
+        delete updatedMap[node.name];
       } else {
-        updatedMap[node.name] = newStatus; // Set new status
+        updatedMap[node.name] = newStatus;
       }
       return updatedMap;
     });
@@ -106,7 +104,6 @@ const TreeView = ({ treeData, executeAction }) => {
     { label: "Valid Configuration", value: "PySATSatisfiableConfiguration" },
   ];
 
-  // State to track the status of each node
   const [statusMap, setStatusMap] = useState({});
 
   return (
