@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ResizableBox } from "react-resizable";
 import DropdownMenu from "./DropdownMenu";
 
@@ -106,6 +106,11 @@ const TreeView = ({ treeData, executeAction }) => {
 
   const [statusMap, setStatusMap] = useState({});
 
+  useEffect(() => {
+    setStatusMap(() => {
+      return {};
+    });
+  }, [treeData]);
   return (
     <ResizableBox
       width={300}
