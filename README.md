@@ -19,7 +19,7 @@ FlamapyIDE is Francisco Benítez's (@sebasruii) Final Degree Project. It consist
 
 ## Getting started
 
-To run FlamapyIDE locally, you must have node installed. Clone this repository and follow these steps:
+To run FlamapyIDE locally, you must have NodeJS (>=18.5) installed. Clone this repository and follow these steps:
 
 ### 1. Install dependencies
 
