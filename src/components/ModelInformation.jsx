@@ -2,35 +2,13 @@
 import { ResizableBox } from "react-resizable";
 import ModelProperties from "./ModelProperties";
 
-function displayValidity(isValid) {
-  if (isValid) {
-    if (isValid[0] === false && isValid[1] === false) {
-      const modelInformation = isValid[2];
-
-      return <ModelProperties modelProperties={modelInformation} />;
-    } else if (isValid[0] === true) {
-      return (
-        <div className="w-full bg-yellow-700 text-white py-2 px-4 rounded mt-1">
-          The model presents warnings: {isValid[2]}
-        </div>
-      );
-    } else {
-      return (
-        <div className="w-full bg-red-700 text-white py-2 px-4 rounded mt-1">
-          {isValid[2]}
-        </div>
-      );
-    }
-  }
-}
-
 const ModelInformation = ({
   width = 300,
   minWidth = 150,
   maxWidth = 400,
   buttonText = "Validate model",
   onValidateModel,
-  isValid,
+  validation,
 }) => {
   return (
     <ResizableBox
@@ -52,7 +30,25 @@ const ModelInformation = ({
         >
           {buttonText}
         </button>
-        {displayValidity(isValid)}
+        {validation?.errors?.length > 0 &&
+          validation.errors.map((error, index) => {
+            return (
+              <div
+                className="w-full bg-red-700 text-white py-2 px-4 rounded mt-1"
+                key={index}
+              >
+                {error}
+              </div>
+            );
+          })}
+        {validation?.warnings?.length > 0 && (
+          <div className="w-full bg-yellow-700 text-white py-2 px-4 rounded mt-1">
+            The model presents warnings: {validation.warnings}
+          </div>
+        )}
+        {validation?.valid && (
+          <ModelProperties modelProperties={validation.modelInformation} />
+        )}
       </div>
     </ResizableBox>
   );

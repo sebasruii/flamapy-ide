@@ -13,7 +13,7 @@ const ModelProperties = ({ modelProperties }) => {
       </h2>
 
       <div className="divide-y divide-neutral-300 space-y-2">
-        {modelProperties.map(([key, value]) => (
+        {Object.entries(modelProperties).map(([key, value]) => (
           <div key={key} className="mb-4">
             <span className="font-bold text-neutral-900">{key}:</span>
             {Array.isArray(value) ? (

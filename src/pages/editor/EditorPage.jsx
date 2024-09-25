@@ -15,7 +15,7 @@ function EditorPage({ selectedFile }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isImported, setIsImported] = useState(true);
-  const [isValid, setIsValid] = useState(false);
+  const [validation, setValidation] = useState(null);
   const [lastOutputHeight, setLastOutputHeight] = useState(150);
   const [output, setOutput] = useState({
     label: "Loading Flamapy...",
@@ -71,7 +71,10 @@ function EditorPage({ selectedFile }) {
         });
         if (selectedFile) setIsImported(false);
       } else {
-        console.error(event.data.exeption);
+        setOutput({
+          label: "Initialization exception",
+          result: `An exception has occurred when trying to initialize FlamapyIDE: ${event.data.exeption}`,
+        });
       }
     };
     setWorker(flamapyWorker);
@@ -124,7 +127,7 @@ function EditorPage({ selectedFile }) {
   }, [isLoaded, worker, isImported, selectedFile]);
 
   useEffect(() => {
-    if (isValid && !isValid[0] && !isValid[1]) {
+    if (validation?.valid) {
       worker.postMessage({
         action: "getFeatureTree",
       });
@@ -135,7 +138,7 @@ function EditorPage({ selectedFile }) {
         }
       };
     }
-  }, [isValid, worker]);
+  }, [validation, worker]);
 
   // eslint-disable-next-line no-unused-vars
   const handleResize = (e, data) => {
@@ -153,7 +156,9 @@ function EditorPage({ selectedFile }) {
 
       worker.onmessage = (event) => {
         if (event.data.results !== undefined) {
-          setIsValid(event.data.results);
+          setValidation(() => {
+            return event.data.results;
+          });
         } else if (event.data.error) {
           console.error("Error:", event.data.error);
         }
@@ -163,42 +168,58 @@ function EditorPage({ selectedFile }) {
 
   async function executeAction(action) {
     if (isLoaded) {
-      if (!isValid || isValid[0] || isValid[1]) {
+      if (validation == null) {
         await validateModel();
       }
-      worker.postMessage({ action: "executeAction", data: action });
-      setIsRunning(true);
-      setOutput({ label: action.label, result: "Executing operation" });
-      worker.onmessage = (event) => {
-        if (event.data.results !== undefined) {
-          setOutput(event.data.results);
-        } else if (event.data.error) {
-          console.error("Error:", event.data.error);
-        }
-        setIsRunning(false);
-      };
+      if (validation.valid) {
+        worker.postMessage({ action: "executeAction", data: action });
+        setIsRunning(true);
+        setOutput({ label: action.label, result: "Executing operation" });
+        worker.onmessage = (event) => {
+          if (event.data.results !== undefined) {
+            setOutput(event.data.results);
+          } else if (event.data.error) {
+            console.error("Error:", event.data.error);
+          }
+          setIsRunning(false);
+        };
+      } else {
+        setOutput({
+          label: action.label,
+          result:
+            "Error executing operation: the model is not valid. Check for syntax errors and retry once the model is valid",
+        });
+      }
     }
   }
 
   async function executeActionWithConf(action, configuration) {
     if (isLoaded) {
-      if (!isValid || isValid[0] || isValid[1]) {
+      if (validation == null) {
         await validateModel();
       }
-      worker.postMessage({
-        action: "executeActionWithConf",
-        data: { action, configuration },
-      });
-      setIsRunning(true);
-      setOutput({ label: action.label, result: "Executing operation" });
-      worker.onmessage = (event) => {
-        if (event.data.results !== undefined) {
-          setOutput(event.data.results);
-        } else if (event.data.error) {
-          console.error("Error:", event.data.error);
-        }
-        setIsRunning(false);
-      };
+      if (validation.valid) {
+        worker.postMessage({
+          action: "executeActionWithConf",
+          data: { action, configuration },
+        });
+        setIsRunning(true);
+        setOutput({ label: action.label, result: "Executing operation" });
+        worker.onmessage = (event) => {
+          if (event.data.results !== undefined) {
+            setOutput(event.data.results);
+          } else if (event.data.error) {
+            console.error("Error:", event.data.error);
+          }
+          setIsRunning(false);
+        };
+      } else {
+        setOutput({
+          label: action.label,
+          result:
+            "Error executing operation: the model is not valid. Check for syntax errors and retry once the model is valid",
+        });
+      }
     }
   }
 
@@ -226,14 +247,27 @@ function EditorPage({ selectedFile }) {
           });
           saveAs(file);
         } else if (event.data.error) {
-          console.error("Error:", event.data.error);
+          setOutput({ label: "Export failed", result: event.data.error });
         }
       };
     }
   }
 
-  const toggleView = () => {
-    setIsEditorVisible(!isEditorVisible);
+  const toggleView = async () => {
+    if (isLoaded) {
+      if (validation == null) {
+        await validateModel();
+      }
+      if (validation?.valid) {
+        setIsEditorVisible(!isEditorVisible);
+      } else {
+        setOutput({
+          label: "Visualize model",
+          result:
+            "The model is not valid. Check for syntax errors and retry once the model is valid",
+        });
+      }
+    }
   };
 
   return (
@@ -294,7 +328,10 @@ function EditorPage({ selectedFile }) {
           </ExecutionOutput>
         </div>
         {/* Right Side Panel */}
-        <ModelInformation onValidateModel={validateModel} isValid={isValid} />
+        <ModelInformation
+          onValidateModel={validateModel}
+          validation={validation}
+        />
       </div>
     </div>
   );
