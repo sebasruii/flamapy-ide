@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/sebasruii/flamapy-ide/compare/v1.0.0...v1.1.0) (2024-10-01)
+
+
+### Features
+
+* Show constraints when visualizing model ([064923f](https://github.com/sebasruii/flamapy-ide/commit/064923ff6cfcf541cc7fa72f4d28789981634355))
+
 ## 1.0.0 (2024-09-29)
 
 
