@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useState, useRef } from "react";
 import Tree from "react-d3-tree";
+import { elementToSVG } from "dom-to-svg";
 
 // Function to draw an arc between the children
 const drawSemicircle = (rectWidth, rectHeight, isAlternative) => {
@@ -110,7 +111,7 @@ const RenderRectSvgNode = ({ nodeDatum, toggleNode }) => {
 };
 
 // Component that renders the tree and centers it
-export default function FeatureModelVisualization({ treeData }) {
+export default function FeatureModelVisualization({ treeData, constraints }) {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null); // Reference to the parent container
   const svgRef = useRef(null); // Reference to the SVG container for exporting
@@ -141,7 +142,9 @@ export default function FeatureModelVisualization({ treeData }) {
       path.setAttribute("fill", "none");
     });
 
-    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgDocument = elementToSVG(svgRef.current);
+
+    const svgData = new XMLSerializer().serializeToString(svgDocument);
     const svgBlob = new Blob([svgData], {
       type: "image/svg+xml;charset=utf-8",
     });
@@ -161,10 +164,16 @@ export default function FeatureModelVisualization({ treeData }) {
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
+    <div ref={containerRef} className="w-full h-full relative mb-2 mt-2">
       <button
         onClick={exportSVG}
-        className="absolute top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+        className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+      >
+        Export as SVG
+      </button>
+      <button
+        onClick={exportSVG}
+        className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md"
       >
         Export as SVG
       </button>
@@ -182,6 +191,16 @@ export default function FeatureModelVisualization({ treeData }) {
           orientation="vertical"
           pathFunc={straightPathFunc}
         />
+        {constraints && constraints.length > 0 && (
+          <div className="absolute top-4 right-4 p-4 rounded-lg bg-neutral-300 h-min">
+            <div className="font-bold text-xl">Constraints</div>
+            {constraints.map((constraint, index) => (
+              <div key={index} className="text-lg font-mono">
+                {constraint}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

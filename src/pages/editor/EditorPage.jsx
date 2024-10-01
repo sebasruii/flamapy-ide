@@ -25,6 +25,7 @@ function EditorPage({ selectedFile }) {
   });
   const [featureTree, setFeatureTree] = useState(null);
   const [isEditorVisible, setIsEditorVisible] = useState(true);
+  const [constraints, setConstraints] = useState(null);
 
   const editorRef = useRef(null);
 
@@ -149,6 +150,23 @@ function EditorPage({ selectedFile }) {
     }
   };
 
+  function getConstraints(code) {
+    const startIndex = code.indexOf("constraints");
+    if (startIndex !== -1) {
+      const constraintsSection = code.substring(startIndex);
+
+      const constraintsLines = constraintsSection.split("\n").slice(1);
+
+      const constraints = constraintsLines
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+
+      return constraints;
+    } else {
+      return null;
+    }
+  }
+
   async function validateModel() {
     if (isLoaded) {
       const code = editorRef.current.getValue();
@@ -159,6 +177,7 @@ function EditorPage({ selectedFile }) {
           setValidation(() => {
             return event.data.results;
           });
+          setConstraints(getConstraints(code));
         } else if (event.data.error) {
           console.error("Error:", event.data.error);
         }
@@ -315,7 +334,10 @@ function EditorPage({ selectedFile }) {
             hide={!isEditorVisible}
           />
           {!isEditorVisible && (
-            <FeatureModelVisualization treeData={featureTree} />
+            <FeatureModelVisualization
+              treeData={featureTree}
+              constraints={constraints}
+            />
           )}
 
           {/* Bottom Panel */}
