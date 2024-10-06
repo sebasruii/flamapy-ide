@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/sebasruii/flamapy-ide/compare/v1.1.0...v1.1.1) (2024-10-06)
+
+
+### Bug Fixes
+
+* Fix feature inclusion probability ([686bf71](https://github.com/sebasruii/flamapy-ide/commit/686bf7136e69b56fc090b4e1fa9aadbacf577542))
+
 ## [1.1.0](https://github.com/sebasruii/flamapy-ide/compare/v1.0.0...v1.1.0) (2024-10-01)
 
 
