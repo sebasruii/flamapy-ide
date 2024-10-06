@@ -8,6 +8,7 @@ from antlr4.error.ErrorListener import ErrorListener
 from flamapy.core.discover import DiscoverMetamodels
 from flamapy.metamodels.fm_metamodel.transformations import GlencoeReader, AFMReader, FeatureIDEReader, JSONReader, XMLReader, UVLReader, GlencoeWriter
 from flamapy.metamodels.configuration_metamodel.models import Configuration
+from collections import defaultdict
 
 fm = None
   
@@ -92,8 +93,10 @@ def execute_pysat_operation(name: str):
     # Get and print the result
     result = operation.get_result()
     if type(result) is list:
-        return [str(conf) for conf in result]
-    return result
+        return json.dumps([str(conf) for conf in result])
+    if isinstance(result,defaultdict):
+        return json.dumps(["{}: {}".format(str(k), str(v)) for k,v in result.items()])
+    return json.dumps(result)
 
 def execute_export_transformation(transformation: str):
     dm = DiscoverMetamodels()

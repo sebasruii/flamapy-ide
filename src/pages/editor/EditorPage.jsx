@@ -196,6 +196,7 @@ function EditorPage({ selectedFile }) {
         setOutput({ label: action.label, result: "Executing operation" });
         worker.onmessage = (event) => {
           if (event.data.results !== undefined) {
+            event.data.results.result = JSON.parse(event.data.results.result);
             setOutput(event.data.results);
           } else if (event.data.error) {
             console.error("Error:", event.data.error);
