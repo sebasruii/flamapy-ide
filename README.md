@@ -89,3 +89,19 @@ docker run -p 5173:5173 -v $(pwd):/app -v /app/node_modules flamapy-ide:dev
 ```
 
 This starts the Vite development server with hot-reloading on port 5173. Access it at http://localhost:5173.
+
+# Running tests
+
+To run the tests you must have Python >=3.10 installed on your system.
+
+First, install the project Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+After that, you can run the tests with coverae with the following command
+
+```bash
+pytest –cov=public tests/
+```
