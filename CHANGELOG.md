@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/sebasruii/flamapy-ide/compare/v1.2.0...v1.2.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* Hide button when no constraints ([11010c9](https://github.com/sebasruii/flamapy-ide/commit/11010c92ec195ceba00a366c6547f12501d940a0))
+
 ## [1.2.0](https://github.com/sebasruii/flamapy-ide/compare/v1.1.1...v1.2.0) (2024-10-09)
 
 
