@@ -173,12 +173,14 @@ export default function FeatureModelVisualization({ treeData, constraints }) {
         >
           Export as SVG
         </button>
-        <button
-          className="bg-blue-500 text-white px-4 py-2  rounded-md"
-          onClick={() => setShowConstraints(!showConstraints)}
-        >
-          {showConstraints ? "Hide" : "Show"} Constraints
-        </button>
+        {constraints && constraints.length > 0 && (
+          <button
+            className="bg-blue-500 text-white px-4 py-2  rounded-md"
+            onClick={() => setShowConstraints(!showConstraints)}
+          >
+            {showConstraints ? "Hide" : "Show"} Constraints
+          </button>
+        )}
       </div>
       {/* Tree component from react-d3-tree */}
       <div ref={svgRef} className="w-full h-full">
