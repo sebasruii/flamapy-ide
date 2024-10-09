@@ -89,7 +89,10 @@ function EditorPage({ selectedFile }) {
         flamapyWorker.terminate();
       };
     } catch (error) {
-      console.error(error);
+      setOutput({
+        label: "Initialization exception",
+        result: `An exception has occurred when trying to initialize FlamapyIDE: ${error.toString()}`,
+      });
     }
   }, []);
 
@@ -118,6 +121,19 @@ function EditorPage({ selectedFile }) {
             if (event.data.results !== undefined) {
               editorRef.current.setValue(event.data.results);
               await editorRef.current.layout();
+              setIsImported(true);
+            } else if (event.data.error) {
+              if (event.data.error.includes("not_supported")) {
+                setOutput({
+                  label: "Import error",
+                  result: `The provided file extension is not a supported model. Please try with a model in one of the following types: .gfm.json, .afm, .fide, .json, .xml or .uvl`,
+                });
+              } else {
+                setOutput({
+                  label: "Import error",
+                  result: `There was an error when trying to import the model. Please make sure that the model is valid, and try again.`,
+                });
+              }
               setIsImported(true);
             }
           };
@@ -179,7 +195,10 @@ function EditorPage({ selectedFile }) {
           });
           setConstraints(getConstraints(code));
         } else if (event.data.error) {
-          console.error("Error:", event.data.error);
+          setOutput({
+            label: "Validation error",
+            result: `An exception has occurred when trying to validate the model.\nTry restarting Flamapy by pressing on the stop button.`,
+          });
         }
       };
     }
@@ -199,7 +218,10 @@ function EditorPage({ selectedFile }) {
             event.data.results.result = JSON.parse(event.data.results.result);
             setOutput(event.data.results);
           } else if (event.data.error) {
-            console.error("Error:", event.data.error);
+            setOutput({
+              label: action.label,
+              result: `An exception has occurred when trying to execute the operation. Please check if the model is well defined.`,
+            });
           }
           setIsRunning(false);
         };
@@ -229,7 +251,10 @@ function EditorPage({ selectedFile }) {
           if (event.data.results !== undefined) {
             setOutput(event.data.results);
           } else if (event.data.error) {
-            console.error("Error:", event.data.error);
+            setOutput({
+              label: action.label,
+              result: `An exception has occurred when trying to execute the operation. Please check if the model is well defined.`,
+            });
           }
           setIsRunning(false);
         };

@@ -112,6 +112,7 @@ def execute_import_transformation(file_extension: str, file_content: str):
     with open("import.{}".format(file_extension), "w") as text_file:
         text_file.write(file_content)
     dm = DiscoverMetamodels()
+    feature_model = False
     match(file_extension):
         case 'gfm.json':
             feature_model = GlencoeReader("import.gfm.json").transform()
@@ -131,10 +132,13 @@ def execute_import_transformation(file_extension: str, file_content: str):
         case 'uvl':
             feature_model = UVLReader("import.uvl").transform()
             os.remove("import.uvl")
-
-    result = dm.use_transformation_m2t(feature_model,'import.uvl')
-    os.remove("import.uvl")
-    return result
+    
+    if(feature_model):
+        result = dm.use_transformation_m2t(feature_model,'import.uvl')
+        os.remove("import.uvl")
+        return result
+    else:
+        raise Exception("not_supported")
 
 def feature_tree(node):
     res = dict()

@@ -34,6 +34,12 @@ function Home({ setSelectedFile }) {
         >
           Import model
         </button>
+        <div className="text-center text-sm italic">
+          <p>
+            Supported feature models: UVL (.uvl), Glencoe (.gfm.json), AFM
+            (.afm), FeatureIDE (.fide), JSON (.json), FaMa (.xml)
+          </p>
+        </div>
       </div>
     </div>
   );
