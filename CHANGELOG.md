@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/sebasruii/flamapy-ide/compare/v1.1.1...v1.2.0) (2024-10-09)
+
+
+### Features
+
+* Add better error communication ([b564319](https://github.com/sebasruii/flamapy-ide/commit/b564319ee7edb7221c4ad30334bca06cbed2a466))
+* Show/Hide constraints ([e923448](https://github.com/sebasruii/flamapy-ide/commit/e9234489b6109133d1998f77acebc4f1dd8116d7))
+
 ## [1.1.1](https://github.com/sebasruii/flamapy-ide/compare/v1.1.0...v1.1.1) (2024-10-06)
 
 
