@@ -115,6 +115,7 @@ export default function FeatureModelVisualization({ treeData, constraints }) {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null); // Reference to the parent container
   const svgRef = useRef(null); // Reference to the SVG container for exporting
+  const [showConstraints, setShowConstraints] = useState(false);
 
   // Function to update the tree's translation based on the container size
   const updateTreePosition = () => {
@@ -165,18 +166,20 @@ export default function FeatureModelVisualization({ treeData, constraints }) {
 
   return (
     <div ref={containerRef} className="w-full h-full relative mb-2 mt-2">
-      <button
-        onClick={exportSVG}
-        className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-      >
-        Export as SVG
-      </button>
-      <button
-        onClick={exportSVG}
-        className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-      >
-        Export as SVG
-      </button>
+      <div className="absolute top-4 left-4 flex flex-col">
+        <button
+          onClick={exportSVG}
+          className=" bg-blue-500 text-white px-4 py-2 rounded-md mb-2"
+        >
+          Export as SVG
+        </button>
+        <button
+          className="bg-blue-500 text-white px-4 py-2  rounded-md"
+          onClick={() => setShowConstraints(!showConstraints)}
+        >
+          {showConstraints ? "Hide" : "Show"} Constraints
+        </button>
+      </div>
       {/* Tree component from react-d3-tree */}
       <div ref={svgRef} className="w-full h-full">
         <Tree
@@ -191,11 +194,11 @@ export default function FeatureModelVisualization({ treeData, constraints }) {
           orientation="vertical"
           pathFunc={straightPathFunc}
         />
-        {constraints && constraints.length > 0 && (
+        {showConstraints && constraints && constraints.length > 0 && (
           <div className="absolute top-4 right-4 p-4 rounded-lg bg-neutral-300 h-min">
-            <div className="font-bold text-xl">Constraints</div>
+            <div className="font-bold text-xl px-4 py-2">Constraints</div>
             {constraints.map((constraint, index) => (
-              <div key={index} className="text-lg font-mono">
+              <div key={index} className="text-s font-mono">
                 {constraint}
               </div>
             ))}
