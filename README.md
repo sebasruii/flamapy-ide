@@ -40,7 +40,7 @@ Run `npm install` and wait until all packages have been downloaded.
 
 Once packages have been downloaded, you can run:
 `npm run dev`
-and this will deploy FlamapyIDE on localhost.
+and this will deploy FlamapyIDE on http://localhost:5173
 
 # Deploying the Project Using Docker
 
