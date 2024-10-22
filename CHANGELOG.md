@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/sebasruii/flamapy-ide/compare/v1.2.1...v1.3.0) (2024-10-22)
+
+
+### Features
+
+* Import FM from URL ([f092c00](https://github.com/sebasruii/flamapy-ide/commit/f092c000662e982baf3dfb9817d43ecaaafdd641))
+
 ## [1.2.1](https://github.com/sebasruii/flamapy-ide/compare/v1.2.0...v1.2.1) (2024-10-09)
 
 
