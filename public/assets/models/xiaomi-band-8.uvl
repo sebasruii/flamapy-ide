@@ -1,0 +1,84 @@
+namespace SmartWatch
+
+features
+	SmartWatch {abstract true}
+		optional
+			Screen
+				mandatory
+					ScreenType {abstract true}
+						alternative
+							OLED
+								mandatory
+									CapacityButton
+							AMOLED
+								mandatory
+									CapacitivitySensing
+				optional
+					TouchScreen
+						optional
+							FullColor
+		mandatory
+			Functionalities {abstract true}
+				mandatory
+					FitnessMonitor
+					SleepTracker
+				optional
+					ContactlessPayment
+				mandatory
+					VibrateAlert
+						mandatory
+							Call
+							Notification
+			Sensors {abstract true}
+				mandatory
+					Pedometer
+						optional
+							MovementFilter
+					Accelerometer
+				optional
+					Gyroscope
+					Infrared
+					Microphone
+					ProximitySensor
+					HeartRateSensor
+						optional
+							Photoplethysmogram
+					SpO2
+			Connectivity {abstract true}
+				optional
+					NFC
+				mandatory
+					Bluetooth
+						alternative
+							BLE {abstract true}
+								alternative
+									BLEv40
+									BLEv42
+									BLEv50
+									BLEv52
+									BLEv51
+							BT40
+
+constraints
+	MovementFilter => !HeartRateSensor & BLEv40
+	BLE => HeartRateSensor | MovementFilter
+	BT40 => !Screen
+	!Screen => BT40
+	NFC => TouchScreen
+	TouchScreen => BLEv42 | BLEv50 | BLEv52 | BLEv51
+	AMOLED => BLEv50 | BLEv52 | BLEv51
+	BLEv50 | BLEv52 | BLEv51 => AMOLED
+	AMOLED => Gyroscope
+	Gyroscope => AMOLED
+	AMOLED => ProximitySensor
+	ProximitySensor => AMOLED
+	BLEv50 | BLEv52 | BLEv51 => FullColor
+	FullColor => BLEv50 | BLEv52 | BLEv51
+	Infrared | Microphone => NFC & Photoplethysmogram
+	NFC => ContactlessPayment
+	ContactlessPayment => NFC
+	Photoplethysmogram => BLEv50 | BLEv52 | BLEv51
+	Microphone | Infrared => Photoplethysmogram
+	NFC & Photoplethysmogram => Microphone & Infrared
+	SpO2 => Photoplethysmogram
+	BLEv52 => SpO2
