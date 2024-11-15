@@ -123,6 +123,10 @@ function UVLEditor({ editorRef, validateModel, defaultCode = "", hide }) {
           value={defaultCode}
           onMount={handleEditorDidMount}
           onChange={validateModel}
+          options={{
+            insertSpaces: false,
+            tabSize: 4,
+          }}
         />
       </div>
     </div>
