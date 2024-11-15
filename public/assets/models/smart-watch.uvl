@@ -1,0 +1,23 @@
+namespace smartwatch
+features
+	smartwatch {abstract true}
+		mandatory
+			screen
+				alternative
+					touch
+					standard
+			"energy management"
+				alternative
+					basic
+					"advanced solar"
+		optional
+			payment
+			gps
+			"sports tracking"
+				or
+					running
+					skiing
+					hiking
+constraints
+	!(payment & standard)
+	"sports tracking" => gps

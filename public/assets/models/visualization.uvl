@@ -1,0 +1,24 @@
+namespace Table
+features
+	Table {abstract}
+		mandatory
+			Information {abstract}
+				mandatory
+					DataRelationship {abstract}
+						alternative
+							QuantitativeToCategorical {abstract}
+								alternative
+									SingleSetOfCategories {abstract}
+									MultipleCategories {abstract}
+									HierarchicalCategories {abstract}
+							QuantitativeToQuantitative {abstract}
+								alternative
+									SingleCategoricalItems {abstract}
+									MultipleCategoricalItems {abstract}
+			TableType {abstract}
+				alternative
+					Unidirectional
+					Bidirectional
+constraints
+	SingleSetOfCategories => Unidirectional
+	SingleCategoricalItems => Unidirectional
