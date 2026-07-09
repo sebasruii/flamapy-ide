@@ -3,6 +3,7 @@ import { flamapyEnginePlugin } from '@flamapy/plugin-flamapy-engine';
 import { graphViewPlugin } from '@flamapy/plugin-view-graph';
 import { chartsViewPlugin } from '@flamapy/plugin-view-charts';
 import { flowMapViewPlugin } from '@flamapy/plugin-view-flowmap';
+import { configuratorPlugin } from '@flamapy/plugin-configurator';
 
 /**
  * First-party plugins compiled into the IDE, activated at workbench startup in
@@ -14,4 +15,5 @@ export const builtinPlugins: FlamapyPlugin[] = [
   graphViewPlugin,
   chartsViewPlugin,
   flowMapViewPlugin,
+  configuratorPlugin,
 ];

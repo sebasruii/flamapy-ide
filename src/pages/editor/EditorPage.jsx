@@ -11,10 +11,7 @@ import EditorTabs from "../../components/layout/EditorTabs";
 import BottomPanel from "../../components/layout/BottomPanel";
 import StatusBar from "../../components/layout/StatusBar";
 import { saveAs } from "file-saver";
-import { FeatureTree as TreeView } from "@flamapy/web-ui";
-import { Wizard } from "@flamapy/web-ui";
 import { OperationInputModal } from "@flamapy/web-ui";
-import JSZip from "jszip";
 import {
   WASM,
   REST,
@@ -28,6 +25,7 @@ import {
   OPEN_PLUGIN_MANAGER,
 } from "@flamapy/plugin-flamapy-engine";
 import { START_OPTIMIZATION } from "@flamapy/plugin-view-charts";
+import { CONFIGURATOR_VIEW_ID } from "@flamapy/plugin-configurator";
 import { createWorkbench } from "../../workbench/createWorkbench";
 import { builtinPlugins } from "../../workbench/builtinPlugins";
 import { useContributionStore } from "../../workbench/useContributionStore";
@@ -44,19 +42,6 @@ import { ModalOutlet } from "../../workbench/slots/ModalOutlet";
 // derivation + the IDE's presentation layer (labels, input prompts, order, the one
 // legacy modal operation) live in @flamapy/web-core (operationCatalog); the worker,
 // validation and dispatch live in the flamapy-engine plugin's services.
-
-// Configuration-input operations — run from the configuration panel against the tree's
-// current selection (a {feature: value} mapping). A `method` entry runs that mapping
-// through the facade; a `value` entry drives a UI-only flow (wizard, download).
-const CONFIG_OPERATIONS = [
-  { label: "Valid configuration", method: "satisfiable_configuration" },
-  { label: "Filter", method: "filter" },
-  { label: "Commonality", method: "commonality" },
-  { label: "Diagnosis", method: "diagnosis" },
-  { label: "Conflict", method: "conflict" },
-  { label: "Interactive Configuration", value: "configurator" },
-  { label: "Download Configurator", value: "downloadConfigurator" },
-];
 
 const EXPORT_OPERATIONS = [
   { label: "AFM", value: "afm" },
@@ -115,9 +100,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   // Model metrics (right panel) — fetched separately from validation because
   // some metrics are full analyses and must not run on every (debounced) keystroke.
   const [modelInfo, setModelInfo] = useState(null);
-  const [featureTree, setFeatureTree] = useState(null);
   const [currentView, setCurrentView] = useState("source");
-  const [history, setHistory] = useState(null);
   const [showConfiguratorPanel, setShowConfiguratorPanel] = useState(true);
   const [modelInfoOpen, setModelInfoOpen] = useState(true);
   const [panelTab, setPanelTab] = useState("output");
@@ -294,15 +277,8 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     }
   }, [isLoaded, isImported, selectedFile, call, isEditorReady]);
 
-  // Fetch feature tree whenever validation succeeds
   useEffect(() => {
-    if (validation?.valid) {
-      call("getFeatureTree").then((result) => setFeatureTree(result)).catch(() => {});
-    }
-  }, [validation, call]);
-
-  useEffect(() => {
-    if (currentView === "configurator") setShowConfiguratorPanel(true);
+    if (currentView === CONFIGURATOR_VIEW_ID) setShowConfiguratorPanel(true);
   }, [currentView]);
 
   const handleResize = (e, data) => {
@@ -401,44 +377,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     runOperation({ ...action, args: { ...(action.args || {}), [action.input.arg]: value } });
   }
 
-  async function executeActionWithConf(action, configuration) {
-    if (!isLoaded) return;
-    const currentValidation = await ensureValidated();
-    if (!currentValidation?.valid) {
-      setOutput({ label: action.label, result: "Error: the model is not valid. Fix syntax errors and retry." });
-      return;
-    }
-
-    if (action.method) {
-      const { analysis } = engine.services;
-      setIsRunning(true);
-      setOutput({ label: action.label, result: "Executing operation" });
-      try {
-        const result = await analysis.runOperationWithConfig(action, configuration);
-        setOutput({ label: action.label, result });
-      } catch (error) {
-        setOutput({ label: action.label, result: analysis.describeError(error) });
-      }
-      setIsRunning(false);
-    } else if (action.value === "configurator") {
-      toggleView(action);
-    } else if (action.value === "downloadConfigurator") {
-      const zip = new JSZip();
-      try {
-        const response = await fetch(`${import.meta.env.BASE_URL}assets/flamapy.conf.zip`);
-        if (!response.ok) throw new Error("Failed to load base.zip");
-        const baseZip = await JSZip.loadAsync(await (await response.blob()).arrayBuffer());
-        baseZip.forEach((relativePath, file) => zip.file(relativePath, file.async("arraybuffer")));
-        const featureModel = new File([editorRef.current.getValue()], "FeatureModel.uvl", { type: "text/plain" });
-        zip.file(`models/${featureModel.name}`, featureModel);
-        saveAs(await zip.generateAsync({ type: "blob" }), "configurator.zip");
-      } catch (err) {
-        console.error("Error processing ZIP:", err);
-        setOutput({ label: "Download Configurator", result: `Failed to generate the configurator ZIP: ${err.message}` });
-      }
-    }
-  }
-
   function interruptExecution() {
     if (!isLoaded || !engine.services) return;
     const { worker } = engine.services;
@@ -470,13 +408,10 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     const currentValidation = await ensureValidated();
     if (!currentValidation?.valid) {
       const messages = {
-        configurator: "The model is not valid. Fix syntax errors before configuring.",
       };
       setOutput({ label: option.label, result: messages[option.value] ?? "The model is not valid." });
       return;
     }
-
-    if (option.value === "configurator") setShowConfiguratorPanel(true);
 
     setCurrentView(option.value);
   }
@@ -589,10 +524,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
         tabs.push({ label: view.title, value: view.id, contributed: true });
       }
     }
-    const dynamic = { configurator: "Configurator" };
-    if (dynamic[currentView] && !tabs.some((t) => t.value === currentView)) {
-      tabs.push({ label: dynamic[currentView], value: currentView });
-    }
     return tabs;
   }, [viewOptions, contributedViews, currentView]);
 
@@ -658,15 +589,11 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
           onOpenPlugins={() => workbench.shell.commands.execute(OPEN_PLUGIN_MANAGER)}
         />
 
-        {showConfiguratorPanel && (
-          <TreeView
-            treeData={featureTree}
-            executeAction={executeActionWithConf}
-            operations={CONFIG_OPERATIONS}
-            history={history}
-          />
-        )}
-        <SidebarSlot store={workbench.stores.sidebarPanels} side="left" />
+        <SidebarSlot
+          store={workbench.stores.sidebarPanels}
+          side="left"
+          visible={showConfiguratorPanel}
+        />
 
         <div className="flex flex-1 flex-col overflow-hidden">
           <EditorTabs tabs={editorTabs} currentView={currentView} onSelect={selectTab} />
@@ -683,9 +610,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
               darkMode={darkMode}
             />
             <ViewOutlet store={workbench.stores.views} activeViewId={currentView} />
-            {currentView === "configurator" && (
-              <Wizard call={call} setHistory={setHistory} />
-            )}
           </div>
 
           <BottomPanel
