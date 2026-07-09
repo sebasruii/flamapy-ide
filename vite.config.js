@@ -15,13 +15,42 @@ const crossOriginIsolationHeaders = {
 // https://vitejs.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || "/",
-  plugins: [react(), rawEndpointPlugin()],
+  plugins: [react(), rawEndpointPlugin(), sharedImportMapPlugin()],
   optimizeDeps: {
     exclude: ["pyodide"],
   },
   server: { headers: crossOriginIsolationHeaders },
   preview: { headers: crossOriginIsolationHeaders },
 });
+
+// Injects the import map that resolves react / react-dom / react/jsx-runtime /
+// @flamapy/plugin-api to the shared-module shims in public/shared/, so remotely loaded
+// ESM plugins (built with those four as externals) share the shell's module instances.
+// The shell bundle itself is unaffected: Vite resolves its bare imports at build time.
+function sharedImportMapPlugin() {
+  return {
+    name: "shared-import-map",
+    transformIndexHtml() {
+      const base = process.env.VITE_BASE_PATH || "/";
+      const importMap = {
+        imports: {
+          react: `${base}shared/react.js`,
+          "react-dom": `${base}shared/react-dom.js`,
+          "react/jsx-runtime": `${base}shared/react-jsx-runtime.js`,
+          "@flamapy/plugin-api": `${base}shared/flamapy-plugin-api.js`,
+        },
+      };
+      return [
+        {
+          tag: "script",
+          attrs: { type: "importmap" },
+          children: JSON.stringify(importMap),
+          injectTo: "head-prepend",
+        },
+      ];
+    },
+  };
+}
 
 // Mirrors the nginx /raw location: decodes ?model= (base64 UTF-8) and returns
 // plain text so UVLHub can fetch the raw UVL content during development.

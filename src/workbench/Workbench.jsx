@@ -29,6 +29,15 @@ import { builtinPlugins } from "./builtinPlugins";
 import { useContributionStore } from "./useContributionStore";
 import { useEngine } from "./useEngine";
 import { useShareLinks } from "./useShareLinks";
+import {
+  addRemotePlugin,
+  forgetRemotePlugin,
+  loadRememberedRemotePlugins,
+  remotePluginUrls,
+  remotePluginsEnabled,
+  setRemotePluginsEnabled,
+} from "./remotePlugins";
+import RemotePluginsModal from "./RemotePluginsModal";
 import { useCollabSession } from "./useCollabSession";
 import { ToolbarMenuSlot } from "./slots/ToolbarMenuSlot";
 import { StatusBarSlot } from "./slots/StatusBarSlot";
@@ -97,17 +106,26 @@ function Workbench({ selectedFile, darkMode, toggleDark }) {
     []
   );
 
-  // Activate the built-in plugins once (the engine among them).
+  // Activate the built-in plugins once (the engine among them), then any remembered
+  // remote plugins (no-op unless the experimental flag is on).
   useEffect(() => {
     for (const plugin of builtinPlugins) {
       workbench.host.register(plugin);
     }
-    workbench.host.activateAll();
+    workbench.host.activateAll().then(() => loadRememberedRemotePlugins(workbench));
     return () => {
       workbench.host.deactivateAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Remote-plugins settings modal (experimental loader).
+  const [remoteModalState, setRemoteModalState] = useState(null);
+  const openRemotePlugins = useCallback(() => {
+    setRemoteModalState({ enabled: remotePluginsEnabled(), urls: remotePluginUrls() });
+  }, []);
+  const refreshRemoteModal = () =>
+    setRemoteModalState({ enabled: remotePluginsEnabled(), urls: remotePluginUrls() });
 
   const engine = useEngine(workbench);
   const { isLoaded, pluginCatalog, validation, restApiUrl, selectedSolver } = engine;
@@ -441,6 +459,7 @@ function Workbench({ selectedFile, darkMode, toggleDark }) {
           onToggleModelInfo={() => setModelInfoOpen((o) => !o)}
           onOpenBackend={() => workbench.shell.commands.execute(OPEN_BACKEND_SETTINGS)}
           onOpenPlugins={() => workbench.shell.commands.execute(OPEN_PLUGIN_MANAGER)}
+          onOpenRemotePlugins={openRemotePlugins}
         />
 
         <SidebarSlot
@@ -502,6 +521,26 @@ function Workbench({ selectedFile, darkMode, toggleDark }) {
       />
 
       <ModalOutlet modals={pluginModals} onClose={closePluginModal} />
+
+      {remoteModalState && (
+        <RemotePluginsModal
+          enabled={remoteModalState.enabled}
+          urls={remoteModalState.urls}
+          onToggle={(enabled) => {
+            setRemotePluginsEnabled(enabled);
+            refreshRemoteModal();
+          }}
+          onAdd={async (url) => {
+            await addRemotePlugin(workbench, url);
+            refreshRemoteModal();
+          }}
+          onRemove={(url) => {
+            forgetRemotePlugin(url);
+            refreshRemoteModal();
+          }}
+          onClose={() => setRemoteModalState(null)}
+        />
+      )}
 
       {inputModal && (
         <OperationInputModal
