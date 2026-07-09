@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@flamapy/plugin-api": ["./packages/plugin-api/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/plugin-api/src",
+    "packages/plugin-flamapy-engine/src",
+    "packages/plugin-view-graph/src",
+    "packages/plugin-view-charts/src",
+    "packages/plugin-view-flowmap/src",
+    "packages/plugin-configurator/src",
+    "src/workbench"
+  ]
+}
