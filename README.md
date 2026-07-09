@@ -30,7 +30,13 @@ FlamapyIDE is a web application for editing, visualizing, and performing Automat
 
 ## Features
 
+- **Plugin workbench (v3)** — the shell owns the editor, tabs, document and plugin
+  host; the analysis engine, every visualization, the configurator and the diagram
+  editor are plugins. Third-party plugins can even load from remote URLs
+  (experimental). See [docs/plugin-authoring.md](docs/plugin-authoring.md)
 - **UVL editor** with syntax highlighting and real-time validation
+- **FeatureDraw diagram editor** — a drag & drop feature-model canvas
+  (`@flamapy/plugin-featuredraw`) two-way-synced with the UVL source
 - **Graphical visualization** of the feature model tree and constraints
 - **Structural operations** (no solver needed): metrics, atomic sets, variation points, leaf features, max depth, estimated configurations, and more
 - **Automated analysis** via SAT, BDD, and Z3 solvers:
@@ -292,8 +298,9 @@ VITE_ENABLE_COLLAB=true VITE_COLLAB_URL=wss://collab.yourdomain.com npm run buil
 
 ```bash
 git clone https://github.com/flamapy/flamapy-ide.git
-cd flamapy-ide
-npm install
+git clone https://github.com/flamapy/featuredraw.git   # side by side: the Diagram
+cd flamapy-ide                                         # plugin is a file:../featuredraw
+npm install                                            # dependency during development
 npm run dev
 ```
 
