@@ -42,6 +42,14 @@ import {
   executeRestOperation,
   executeRestOperationWithConfig,
 } from "@flamapy/web-core";
+import { createWorkbench } from "../../workbench/createWorkbench";
+import { builtinPlugins } from "../../workbench/builtinPlugins";
+import { useContributionStore } from "../../workbench/useContributionStore";
+import { ToolbarMenuSlot } from "../../workbench/slots/ToolbarMenuSlot";
+import { StatusBarSlot } from "../../workbench/slots/StatusBarSlot";
+import { SidebarSlot } from "../../workbench/slots/SidebarSlot";
+import { ViewOutlet } from "../../workbench/slots/ViewOutlet";
+import { ModalOutlet } from "../../workbench/slots/ModalOutlet";
 
 // The analysis/structural operation menus are derived at runtime from the plugin
 // capability catalog the Pyodide bridge reports (which backends implement which
@@ -174,6 +182,66 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   // The exact editor content the current `validation` state refers to; lets
   // ensureValidated() skip revalidation only when nothing changed since.
   const lastValidatedCodeRef = useRef(null);
+
+  // ---------------------------------------------------------------------------
+  // v3 workbench: the plugin host, the shell-owned document and the contribution
+  // stores the chrome renders from. Contributions appear alongside the legacy
+  // hardcoded UI while views/engine code migrates into plugins.
+  // ---------------------------------------------------------------------------
+  const workbenchRef = useRef(null);
+  if (!workbenchRef.current) {
+    workbenchRef.current = createWorkbench("");
+  }
+  const workbench = workbenchRef.current;
+  const [pluginModals, setPluginModals] = useState([]);
+  const nextModalKeyRef = useRef(0);
+  const currentViewRef = useRef("source");
+  currentViewRef.current = currentView;
+
+  // Delegates capture the freshest state each render (plugins call through them).
+  workbench.delegates.showOutput = (label, result) => setOutput({ label, result });
+  workbench.delegates.openModal = (render) => {
+    const key = nextModalKeyRef.current++;
+    setPluginModals((open) => [...open, { key, render }]);
+  };
+  workbench.delegates.setActiveView = (id) => setCurrentView(id);
+  workbench.delegates.getActiveView = () => currentViewRef.current;
+
+  const closePluginModal = useCallback(
+    (key) => setPluginModals((open) => open.filter((modal) => modal.key !== key)),
+    []
+  );
+
+  // Activate the built-in plugins once.
+  useEffect(() => {
+    for (const plugin of builtinPlugins) {
+      workbench.host.register(plugin);
+    }
+    workbench.host.activateAll();
+    return () => {
+      workbench.host.deactivateAll();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Contributed views become tabs; plugins can observe the active view.
+  const contributedViews = useContributionStore(workbench.stores.views);
+  useEffect(() => {
+    workbench.notifyActiveViewChanged(currentView);
+  }, [workbench, currentView]);
+
+  // Non-'editor' document writes (imports, diagram edits) land in monaco. Monaco's own
+  // changes flow the other way via UVLEditor's onContentChange below.
+  useEffect(() => {
+    const subscription = workbench.documents.onDidChange(({ text, origin }) => {
+      if (origin === "editor") return;
+      const editor = editorRef.current;
+      if (editor && editor.getValue() !== text) {
+        editor.setValue(text);
+      }
+    });
+    return () => subscription.dispose();
+  }, [workbench]);
 
   const selectBackend = useCallback((backend) => {
     setComputeBackend(backend);
@@ -804,16 +872,35 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     closeAttrSelectionModal();
   }
 
-  // VSCode-style editor tabs: base views + metrics, plus a dynamic tab for the
-  // configurator / pareto-front views while they are the active view.
+  // VSCode-style editor tabs: base views + metrics + plugin-contributed views, plus a
+  // dynamic tab for the configurator / pareto-front / dynamic plugin views while active.
   const editorTabs = useMemo(() => {
     const tabs = [...viewOptions, ...metricsOptions];
+    for (const view of contributedViews) {
+      if (!view.dynamic || view.id === currentView) {
+        tabs.push({ label: view.title, value: view.id, contributed: true });
+      }
+    }
     const dynamic = { configurator: "Configurator", paretofront: "Pareto Front" };
     if (dynamic[currentView] && !tabs.some((t) => t.value === currentView)) {
       tabs.push({ label: dynamic[currentView], value: currentView });
     }
     return tabs;
-  }, [viewOptions, metricsOptions, currentView]);
+  }, [viewOptions, metricsOptions, contributedViews, currentView]);
+
+  // Contributed tabs open through the shell (running the view's onBeforeOpen guard);
+  // legacy tabs keep the toggleView side effects.
+  const selectTab = useCallback(
+    (tab) => {
+      if (tab.contributed) {
+        workbench.shell.views.open(tab.value);
+        return;
+      }
+      toggleView(tab);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workbench]
+  );
 
   // Status-bar backend control toggles between in-browser WASM and the remote API
   // (selectBackend opens the settings modal when switching to REST).
@@ -847,7 +934,9 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
           onStart: handleStartCollab,
           status: collabStatus,
         }}
-      />
+      >
+        <ToolbarMenuSlot store={workbench.stores.toolbarMenus} />
+      </ActionToolbar>
 
       <div className="flex flex-1 overflow-hidden">
         <ActivityBar
@@ -867,9 +956,10 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
             history={history}
           />
         )}
+        <SidebarSlot store={workbench.stores.sidebarPanels} side="left" />
 
         <div className="flex flex-1 flex-col overflow-hidden">
-          <EditorTabs tabs={editorTabs} currentView={currentView} onSelect={toggleView} />
+          <EditorTabs tabs={editorTabs} currentView={currentView} onSelect={selectTab} />
 
           <div className="flex flex-1 flex-col overflow-hidden relative">
             <UVLEditor
@@ -879,8 +969,10 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
               hide={currentView !== "source"}
               collabConfig={collabConfig}
               onEditorMount={() => setIsEditorReady(true)}
+              onContentChange={(text) => workbench.documents.setText(text, "editor")}
               darkMode={darkMode}
             />
+            <ViewOutlet store={workbench.stores.views} activeViewId={currentView} />
             {currentView === "graph" && (
               <FeatureModelVisualization treeData={featureTree} constraints={constraints} />
             )}
@@ -935,6 +1027,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
             modelInfo={modelInfo}
           />
         )}
+        <SidebarSlot store={workbench.stores.sidebarPanels} side="right" />
       </div>
 
       <StatusBar
@@ -947,7 +1040,11 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
         onToggleBackend={toggleComputeBackend}
         restApiUrl={restApiUrl}
         selectedSolver={selectedSolver}
+        extraLeft={<StatusBarSlot store={workbench.stores.statusBarItems} side="left" />}
+        extraRight={<StatusBarSlot store={workbench.stores.statusBarItems} side="right" />}
       />
+
+      <ModalOutlet modals={pluginModals} onClose={closePluginModal} />
 
       {isAttrOptModalOpen && (
         <AttributeOptimizationModal
