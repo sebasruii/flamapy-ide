@@ -12,7 +12,6 @@ import BottomPanel from "../../components/layout/BottomPanel";
 import StatusBar from "../../components/layout/StatusBar";
 import { saveAs } from "file-saver";
 import { FeatureTree as TreeView } from "@flamapy/web-ui";
-import { FeatureModelVisualization } from "@flamapy/web-ui";
 import { Wizard } from "@flamapy/web-ui";
 import { ProductDistributionChart } from "@flamapy/web-ui";
 import { FeatureInclusionProbabilitiesChart } from "@flamapy/web-ui";
@@ -124,7 +123,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   const [modelInfo, setModelInfo] = useState(null);
   const [featureTree, setFeatureTree] = useState(null);
   const [currentView, setCurrentView] = useState("source");
-  const [constraints, setConstraints] = useState(null);
   const [history, setHistory] = useState(null);
   const [showConfiguratorPanel, setShowConfiguratorPanel] = useState(true);
   const [modelInfoOpen, setModelInfoOpen] = useState(true);
@@ -257,7 +255,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
 
   const viewOptions = useMemo(() => [
     { label: "Source", value: "source" },
-    { label: "Graph", value: "graph" },
   ], []);
 
   const metricsOptions = useMemo(() => {
@@ -354,17 +351,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     }
   };
 
-  function getConstraints(code) {
-    const startIndex = code.indexOf("constraints");
-    if (startIndex === -1) return null;
-    return code
-      .substring(startIndex)
-      .split("\n")
-      .slice(1)
-      .map((l) => l.trim())
-      .filter((l) => l !== "");
-  }
-
   // Shell-side validation wrapper: persist the content (document concerns), then let the
   // engine validate the document text. The engine tracks staleness by document version.
   function validateModel() {
@@ -377,7 +363,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     return engine.services.analysis.validateNow().then((result) => {
       if (result) {
         setModelInfo(null); // metrics refer to the previous model — refetch on demand
-        setConstraints(getConstraints(code));
       }
       return result;
     });
@@ -528,7 +513,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     const currentValidation = await ensureValidated();
     if (!currentValidation?.valid) {
       const messages = {
-        graph: "The model is not valid. Fix syntax errors before visualizing.",
         configurator: "The model is not valid. Fix syntax errors before configuring.",
         configdist: "The model is not valid. Fix syntax errors before computing distribution.",
         fip: "The model is not valid. Fix syntax errors before computing probabilities.",
@@ -539,12 +523,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     }
 
     if (option.value === "configurator") setShowConfiguratorPanel(true);
-
-    if (option.value === "graph") {
-      setCurrentView("graph");
-      call("getFeatureTree").then((result) => setFeatureTree(result)).catch(() => {});
-      return;
-    }
 
     if (option.value === "configdist") {
       setCurrentView("configdist");
@@ -852,9 +830,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
               darkMode={darkMode}
             />
             <ViewOutlet store={workbench.stores.views} activeViewId={currentView} />
-            {currentView === "graph" && (
-              <FeatureModelVisualization treeData={featureTree} constraints={constraints} />
-            )}
             {currentView === "configdist" && (
               <div className="flex-1 overflow-auto">
                 <ErrorBoundary>

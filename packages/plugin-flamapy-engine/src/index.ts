@@ -1,4 +1,5 @@
 export { flamapyEnginePlugin } from './plugin';
+export { validModelGate } from './gate';
 export {
   Analysis,
   Catalog,
