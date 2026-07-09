@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useState } from "react";
-import Modal from "./ui/Modal";
+import { Modal } from "@flamapy/web-ui";
 
 // Manage the analysis plugins (solver backends) available in the IDE. Lists the
 // installed backends, the curated official extras from plugins.registry.json (each

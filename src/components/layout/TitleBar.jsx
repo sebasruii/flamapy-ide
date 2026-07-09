@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { Link } from "react-router-dom";
-import { vsIconBtn } from "../ui/styles";
+import { vsIconBtn } from "@flamapy/web-ui";
 
 // Slim VSCode-style title bar: logo on the left, navigation links + dark-mode
 // toggle on the right. Used by EditorPage (the editor owns its own chrome).

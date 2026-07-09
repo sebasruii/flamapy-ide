@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
-import DropdownMenu from "../DropdownMenu";
-import Segmented from "../ui/Segmented";
-import { vsBtn, vsGroupSep, vsGroupLabel } from "../ui/styles";
+import { DropdownMenu } from "@flamapy/web-ui";
+import { Segmented } from "@flamapy/web-ui";
+import { vsBtn, vsGroupSep, vsGroupLabel } from "@flamapy/web-ui";
 
 // Compact VSCode-style action bar. Stateless: every callback/list is supplied by
 // EditorPage. Groups (Structural · Analyze · Export/Share) are separated by thin

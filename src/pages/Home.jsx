@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { vsBtnPrimary, vsBtn, vsCard } from "../components/ui/styles";
+import { vsBtnPrimary, vsBtn, vsCard } from "@flamapy/web-ui";
 
 function Home({ setSelectedFile }) {
   const navigate = useNavigate();

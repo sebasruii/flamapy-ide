@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import Modal from "./ui/Modal";
+import { Modal } from "@flamapy/web-ui";
 
 // Single-attribute picker (used by the Feature Flow Map view).
 function AttributeSelectionModal({

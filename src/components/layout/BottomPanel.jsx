@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { ResizableBox } from "react-resizable";
-import Spinner from "../Spinner";
+import { Spinner } from "@flamapy/web-ui";
 
 // VSCode-style bottom panel with OUTPUT / PROBLEMS tabs. Replaces the standalone
 // ExecutionOutput: OUTPUT renders the latest operation result (with the Stop button

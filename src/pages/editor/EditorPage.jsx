@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-resizable/css/styles.css";
 import ModelInformation from "../../components/ModelInformation";
-import UVLEditor from "../../components/UVLEditor";
+import { UVLEditor } from "@flamapy/web-ui";
 import TitleBar from "../../components/layout/TitleBar";
 import ActionToolbar from "../../components/layout/ActionToolbar";
 import ActivityBar from "../../components/layout/ActivityBar";
@@ -11,27 +11,27 @@ import EditorTabs from "../../components/layout/EditorTabs";
 import BottomPanel from "../../components/layout/BottomPanel";
 import StatusBar from "../../components/layout/StatusBar";
 import { saveAs } from "file-saver";
-import TreeView from "../../components/FeatureTree";
-import FeatureModelVisualization from "../../components/FeatureModelVisualization";
-import Wizard from "../../components/Wizard";
-import ProductDistributionChart from "../../components/ProductDistributionChart";
-import FeatureInclusionProbabilitiesChart from "../../components/FeatureInclusionProbabilitiesChart";
-import FeatureFlowMap from "../../components/FeatureFlowMap";
-import ParetoFrontChart from "../../components/ParetoFrontChart";
+import { FeatureTree as TreeView } from "@flamapy/web-ui";
+import { FeatureModelVisualization } from "@flamapy/web-ui";
+import { Wizard } from "@flamapy/web-ui";
+import { ProductDistributionChart } from "@flamapy/web-ui";
+import { FeatureInclusionProbabilitiesChart } from "@flamapy/web-ui";
+import { FeatureFlowMap } from "@flamapy/web-ui";
+import { ParetoFrontChart } from "@flamapy/web-ui";
 import ErrorBoundary from "../../components/ErrorBoundary";
-import OperationInputModal from "../../components/OperationInputModal";
+import { OperationInputModal } from "@flamapy/web-ui";
 import BackendSettingsModal from "../../components/BackendSettingsModal";
 import PluginManagerModal from "../../components/PluginManagerModal";
 import AttributeOptimizationModal from "../../components/AttributeOptimizationModal";
 import AttributeSelectionModal from "../../components/AttributeSelectionModal";
 import JSZip from "jszip";
-import { useWorkerClient } from "../../hooks/useWorkerClient";
+import { useWorkerClient } from "@flamapy/web-core";
 import {
   solverOptionsFromCatalog,
   installedBackends,
   structuralOperationsFromCatalog,
   analysisOperationsForSolver,
-} from "../../utils/operationCatalog";
+} from "@flamapy/web-core";
 import {
   WASM,
   REST,
@@ -41,13 +41,13 @@ import {
   saveRestUrl,
   executeRestOperation,
   executeRestOperationWithConfig,
-} from "../../utils/computeBackend";
+} from "@flamapy/web-core";
 
 // The analysis/structural operation menus are derived at runtime from the plugin
 // capability catalog the Pyodide bridge reports (which backends implement which
 // operations), so runtime-installed plugins surface without an IDE edit. The
 // derivation + the IDE's presentation layer (labels, input prompts, order, the one
-// legacy modal operation) live in ../../utils/operationCatalog.
+// legacy modal operation) live in @flamapy/web-core (operationCatalog).
 
 // Runtime-installed plugins are remembered here so they are re-applied on the next
 // load (a fresh Pyodide worker starts with only the bundled defaults). Each stored

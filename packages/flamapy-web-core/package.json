@@ -1,0 +1,11 @@
+{
+  "name": "@flamapy/web-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "description": "flamapy web execution core: Pyodide worker client, WASM/REST compute dispatch and the operation catalog, shared by the browser IDE and (from 3.1) the VS Code extension.",
+  "peerDependencies": {
+    "react": "^18.0.0"
+  }
+}

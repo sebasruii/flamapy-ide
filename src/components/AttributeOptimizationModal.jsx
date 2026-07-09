@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import Modal from "./ui/Modal";
+import { Modal } from "@flamapy/web-ui";
 
 // Z3 attribute optimization: pick which numerical attributes to optimize and
 // in which direction. `goals` is {attribute: {selected, goal}}.

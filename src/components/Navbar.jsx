@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { Link } from "react-router-dom";
-import { vsIconBtn } from "./ui/styles";
+import { vsIconBtn } from "@flamapy/web-ui";
 
 // Slim banner matching the editor's VSCode-style title bar (same height, logo
 // size and link styling). Used by the marketing / info pages so the chrome

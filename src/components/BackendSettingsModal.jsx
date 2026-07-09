@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useState } from "react";
-import Modal from "./ui/Modal";
-import { DEFAULT_REST_URL } from "../utils/computeBackend";
+import { Modal } from "@flamapy/web-ui";
+import { DEFAULT_REST_URL } from "@flamapy/web-core";
 
 // Lets the user point the "Remote API" compute backend at a flamapy-rest server.
 // Defaults to DEFAULT_REST_URL (rest.flamapy.org) and is reachable from the

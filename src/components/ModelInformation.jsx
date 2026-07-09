@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
 import { ResizableBox } from "react-resizable";
 import ModelProperties from "./ModelProperties";
-import Card from "./ui/Card";
-import { vsBtnPrimary, ACCENT } from "./ui/styles";
+import { Card } from "@flamapy/web-ui";
+import { vsBtnPrimary, ACCENT } from "@flamapy/web-ui";
 
 // Right-hand "Model information" panel. Validation errors/warnings now live in the
 // bottom PROBLEMS tab; this panel keeps the validate action and the model metrics.
