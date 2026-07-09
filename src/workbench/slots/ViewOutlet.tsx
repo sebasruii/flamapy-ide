@@ -1,5 +1,7 @@
 import type { ContributionStore, ViewDescriptor } from '@flamapy/plugin-api';
 
+// @ts-expect-error untyped JSX (shell component)
+import ErrorBoundary from '../../components/ErrorBoundary';
 import { useContributionStore } from '../useContributionStore';
 
 /**
@@ -23,7 +25,9 @@ export function ViewOutlet({
         }
         return (
           <div key={view.id} className={active ? 'flex flex-1 flex-col overflow-auto' : 'hidden'}>
-            <view.component />
+            <ErrorBoundary>
+              <view.component />
+            </ErrorBoundary>
           </div>
         );
       })}

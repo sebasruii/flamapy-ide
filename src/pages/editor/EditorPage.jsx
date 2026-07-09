@@ -13,14 +13,7 @@ import StatusBar from "../../components/layout/StatusBar";
 import { saveAs } from "file-saver";
 import { FeatureTree as TreeView } from "@flamapy/web-ui";
 import { Wizard } from "@flamapy/web-ui";
-import { ProductDistributionChart } from "@flamapy/web-ui";
-import { FeatureInclusionProbabilitiesChart } from "@flamapy/web-ui";
-import { FeatureFlowMap } from "@flamapy/web-ui";
-import { ParetoFrontChart } from "@flamapy/web-ui";
-import ErrorBoundary from "../../components/ErrorBoundary";
 import { OperationInputModal } from "@flamapy/web-ui";
-import AttributeOptimizationModal from "../../components/AttributeOptimizationModal";
-import AttributeSelectionModal from "../../components/AttributeSelectionModal";
 import JSZip from "jszip";
 import {
   WASM,
@@ -34,6 +27,7 @@ import {
   OPEN_BACKEND_SETTINGS,
   OPEN_PLUGIN_MANAGER,
 } from "@flamapy/plugin-flamapy-engine";
+import { START_OPTIMIZATION } from "@flamapy/plugin-view-charts";
 import { createWorkbench } from "../../workbench/createWorkbench";
 import { builtinPlugins } from "../../workbench/builtinPlugins";
 import { useContributionStore } from "../../workbench/useContributionStore";
@@ -130,22 +124,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
 
   // Operation-argument modal state ({ action, options } while open, else null)
   const [inputModal, setInputModal] = useState(null);
-
-  // Z3 attribute optimization modal state
-  const [isAttrOptModalOpen, setIsAttrOptModalOpen] = useState(false);
-  const [attrOptBackend, setAttrOptBackend] = useState("z3");
-  const [numericalAttributes, setNumericalAttributes] = useState(null);
-  const [optimizationGoals, setOptimizationGoals] = useState({});
-
-  // Chart data state
-  const [configDistData, setConfigDistData] = useState(null);
-  const [fipData, setFipData] = useState(null);
-  const [paretoFrontData, setParetoFrontData] = useState(null);
-
-  const [isAttrSelectionModalOpen, setIsAttrSelectionModalOpen] = useState(false);
-  const [numericalAttributesSelection, setNumericalAttributesSelection] = useState(null);
-  const [selectedAttribute, setSelectedAttribute] = useState(null);
-  const [ffmData, setFfmData] = useState(null);
 
   const [pluginModals, setPluginModals] = useState([]);
   const nextModalKeyRef = useRef(0);
@@ -256,22 +234,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   const viewOptions = useMemo(() => [
     { label: "Source", value: "source" },
   ], []);
-
-  const metricsOptions = useMemo(() => {
-    if (!enabledPlugins.bdd) return [];
-    return [
-      { label: "Config. Distribution", value: "configdist" },
-      { label: "Feature Prob.", value: "fip" },
-      { label: "Feature Flow Map", value: "ffm" },
-    ];
-  }, [enabledPlugins.bdd]);
-
-  // Reset to source if current view becomes unavailable (e.g. BDD disabled)
-  useEffect(() => {
-    if (!enabledPlugins.bdd && (currentView === "configdist" || currentView === "fip")) {
-      setCurrentView("source");
-    }
-  }, [enabledPlugins.bdd, currentView]);
 
   // Solver tabs + operation menus, derived from the plugin capability catalog.
   const solverOptions = useMemo(() => solverOptionsFromCatalog(pluginCatalog), [pluginCatalog]);
@@ -396,14 +358,9 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     }
 
     if (action.engine === "legacy" && action.value === "AttributeOptimization") {
-      try {
-        const attrs = await call("getNumericalAttributes");
-        setNumericalAttributes(attrs);
-        setAttrOptBackend(action.backendAware ? selectedSolver : "z3");
-        setIsAttrOptModalOpen(true);
-      } catch (error) {
-        setOutput({ label: "Attribute extraction error", result: error.message });
-      }
+      workbench.shell.commands.execute(START_OPTIMIZATION, {
+        backend: action.backendAware ? selectedSolver : "z3",
+      });
       return;
     }
 
@@ -514,58 +471,12 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     if (!currentValidation?.valid) {
       const messages = {
         configurator: "The model is not valid. Fix syntax errors before configuring.",
-        configdist: "The model is not valid. Fix syntax errors before computing distribution.",
-        fip: "The model is not valid. Fix syntax errors before computing probabilities.",
-        ffm: "The model is not valid. Fix syntax errors before computing the feature flow map.",
       };
       setOutput({ label: option.label, result: messages[option.value] ?? "The model is not valid." });
       return;
     }
 
     if (option.value === "configurator") setShowConfiguratorPanel(true);
-
-    if (option.value === "configdist") {
-      setCurrentView("configdist");
-      setConfigDistData(null);
-      setIsRunning(true);
-      setOutput({ label: "Configuration Distribution", result: "Computing..." });
-      try {
-        const result = await call("getConfigurationDistribution");
-        setConfigDistData(result);
-        setOutput({ label: "Configuration Distribution", result: "Done" });
-      } catch (error) {
-        setOutput({ label: "Configuration Distribution Error", result: error.message });
-      }
-      setIsRunning(false);
-      return;
-    }
-
-    if (option.value === "fip") {
-      setCurrentView("fip");
-      setFipData(null);
-      setIsRunning(true);
-      setOutput({ label: "Feature Inclusion Probability", result: "Computing..." });
-      try {
-        const result = await call("getFeatureInclusionProbabilities");
-        setFipData(result);
-        setOutput({ label: "Feature Inclusion Probability", result: "Done" });
-      } catch (error) {
-        setOutput({ label: "Feature Inclusion Probability Error", result: error.message });
-      }
-      setIsRunning(false);
-      return;
-    }
-
-    if (option.value === "ffm") {
-      try {
-        const attrs = await call("getNumericalAttributes");
-        setNumericalAttributesSelection(attrs);
-        setIsAttrSelectionModalOpen(true);
-      } catch (error) {
-        setOutput({ label: "Attribute extraction error", result: error.message });
-      }
-      return;
-    }
 
     setCurrentView(option.value);
   }
@@ -669,79 +580,21 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     setCollabStatus("Session created. Share the link to collaborate.");
   }
 
-  function handleAttributeSelection(attribute, isChecked) {
-    setOptimizationGoals((prev) => ({
-      ...prev,
-      [attribute]: { selected: isChecked, goal: prev[attribute]?.goal || "Minimize" },
-    }));
-  }
-
-  function handleGoalChange(attribute, newGoal) {
-    setOptimizationGoals((prev) => ({ ...prev, [attribute]: { ...prev[attribute], goal: newGoal } }));
-  }
-
-  function executeOptimization() {
-    const { analysis } = engine.services;
-    const selectedGoals = Object.entries(optimizationGoals)
-      .filter(([, data]) => data.selected)
-      .map(([attribute, data]) => ({ attribute, goal: data.goal }));
-    if (selectedGoals.length === 0) {
-      setOutput({ label: "Optimization Error", result: "No attributes selected for optimization." });
-      return;
-    }
-    setIsRunning(true);
-    setOutput({ label: "Attribute Optimization", result: "Executing operation" });
-    setCurrentView("paretofront");
-    call("executeAttributeOptimization", { goals: selectedGoals, backend: attrOptBackend })
-      .then((result) => {
-        setOutput({ label: result.label, result: result.result.results_str });
-        setParetoFrontData(result.result);
-      })
-      .catch((error) => setOutput({ label: "Attribute Optimization", result: analysis.describeError(error) }))
-      .finally(() => setIsRunning(false));
-    closeAttrOptModal();
-  }
-
-  function closeAttrOptModal() {
-    setIsAttrOptModalOpen(false);
-    setOptimizationGoals({});
-  }
-
-  function closeAttrSelectionModal() {
-    setIsAttrSelectionModalOpen(false);
-    setNumericalAttributesSelection(null);
-  }
-
-  function executeFlowMap() {
-    const { analysis } = engine.services;
-    setCurrentView("ffm");
-    setIsRunning(true);
-    setOutput({ label: "Feature Flow Map", result: "Executing operation" });
-    call("getFeatureFlowMap", selectedAttribute)
-      .then((result) => {
-        setOutput(result);
-        setFfmData(result);
-      })
-      .catch((error) => setOutput({ label: "Feature Flow Map", result: analysis.describeError(error) }))
-      .finally(() => setIsRunning(false));
-    closeAttrSelectionModal();
-  }
-
   // VSCode-style editor tabs: base views + metrics + plugin-contributed views, plus a
   // dynamic tab for the configurator / pareto-front / dynamic plugin views while active.
   const editorTabs = useMemo(() => {
-    const tabs = [...viewOptions, ...metricsOptions];
+    const tabs = [...viewOptions];
     for (const view of contributedViews) {
       if (!view.dynamic || view.id === currentView) {
         tabs.push({ label: view.title, value: view.id, contributed: true });
       }
     }
-    const dynamic = { configurator: "Configurator", paretofront: "Pareto Front" };
+    const dynamic = { configurator: "Configurator" };
     if (dynamic[currentView] && !tabs.some((t) => t.value === currentView)) {
       tabs.push({ label: dynamic[currentView], value: currentView });
     }
     return tabs;
-  }, [viewOptions, metricsOptions, contributedViews, currentView]);
+  }, [viewOptions, contributedViews, currentView]);
 
   // Contributed tabs open through the shell (running the view's onBeforeOpen guard);
   // legacy tabs keep the toggleView side effects.
@@ -830,34 +683,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
               darkMode={darkMode}
             />
             <ViewOutlet store={workbench.stores.views} activeViewId={currentView} />
-            {currentView === "configdist" && (
-              <div className="flex-1 overflow-auto">
-                <ErrorBoundary>
-                  <ProductDistributionChart data={configDistData} />
-                </ErrorBoundary>
-              </div>
-            )}
-            {currentView === "fip" && (
-              <div className="flex-1 overflow-auto">
-                <ErrorBoundary>
-                  <FeatureInclusionProbabilitiesChart data={fipData} />
-                </ErrorBoundary>
-              </div>
-            )}
-            {currentView === "ffm" && (
-              <div className="flex-1 overflow-auto">
-                <ErrorBoundary>
-                  <FeatureFlowMap data={ffmData} />
-                </ErrorBoundary>
-              </div>
-            )}
-            {currentView === "paretofront" && (
-              <div className="flex-1 overflow-auto">
-                <ErrorBoundary>
-                  <ParetoFrontChart data={paretoFrontData} />
-                </ErrorBoundary>
-              </div>
-            )}
             {currentView === "configurator" && (
               <Wizard call={call} setHistory={setHistory} />
             )}
@@ -900,25 +725,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
 
       <ModalOutlet modals={pluginModals} onClose={closePluginModal} />
 
-      {isAttrOptModalOpen && (
-        <AttributeOptimizationModal
-          attributes={numericalAttributes}
-          goals={optimizationGoals}
-          onToggle={handleAttributeSelection}
-          onGoalChange={handleGoalChange}
-          onExecute={executeOptimization}
-          onCancel={closeAttrOptModal}
-        />
-      )}
-      {isAttrSelectionModalOpen && (
-        <AttributeSelectionModal
-          attributes={numericalAttributesSelection}
-          selected={selectedAttribute}
-          onSelect={setSelectedAttribute}
-          onConfirm={executeFlowMap}
-          onCancel={closeAttrSelectionModal}
-        />
-      )}
       {inputModal && (
         <OperationInputModal
           action={inputModal.action}
