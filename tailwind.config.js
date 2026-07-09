@@ -1,7 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: "class",
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}", "./packages/**/*.{js,ts,jsx,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./packages/**/*.{js,ts,jsx,tsx}",
+    // The featuredraw plugin (file:../featuredraw) uses tailwind utilities; generate them here.
+    "./node_modules/@flamapy/plugin-featuredraw/src/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
