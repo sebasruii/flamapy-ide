@@ -20,31 +20,25 @@ import { FeatureFlowMap } from "@flamapy/web-ui";
 import { ParetoFrontChart } from "@flamapy/web-ui";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { OperationInputModal } from "@flamapy/web-ui";
-import BackendSettingsModal from "../../components/BackendSettingsModal";
-import PluginManagerModal from "../../components/PluginManagerModal";
 import AttributeOptimizationModal from "../../components/AttributeOptimizationModal";
 import AttributeSelectionModal from "../../components/AttributeSelectionModal";
 import JSZip from "jszip";
-import { useWorkerClient } from "@flamapy/web-core";
 import {
-  solverOptionsFromCatalog,
+  WASM,
+  REST,
   installedBackends,
+  solverOptionsFromCatalog,
   structuralOperationsFromCatalog,
   analysisOperationsForSolver,
 } from "@flamapy/web-core";
 import {
-  WASM,
-  REST,
-  loadBackend,
-  saveBackend,
-  loadRestUrl,
-  saveRestUrl,
-  executeRestOperation,
-  executeRestOperationWithConfig,
-} from "@flamapy/web-core";
+  OPEN_BACKEND_SETTINGS,
+  OPEN_PLUGIN_MANAGER,
+} from "@flamapy/plugin-flamapy-engine";
 import { createWorkbench } from "../../workbench/createWorkbench";
 import { builtinPlugins } from "../../workbench/builtinPlugins";
 import { useContributionStore } from "../../workbench/useContributionStore";
+import { useEngine } from "../../workbench/useEngine";
 import { ToolbarMenuSlot } from "../../workbench/slots/ToolbarMenuSlot";
 import { StatusBarSlot } from "../../workbench/slots/StatusBarSlot";
 import { SidebarSlot } from "../../workbench/slots/SidebarSlot";
@@ -55,30 +49,8 @@ import { ModalOutlet } from "../../workbench/slots/ModalOutlet";
 // capability catalog the Pyodide bridge reports (which backends implement which
 // operations), so runtime-installed plugins surface without an IDE edit. The
 // derivation + the IDE's presentation layer (labels, input prompts, order, the one
-// legacy modal operation) live in @flamapy/web-core (operationCatalog).
-
-// Runtime-installed plugins are remembered here so they are re-applied on the next
-// load (a fresh Pyodide worker starts with only the bundled defaults). Each stored
-// descriptor is { wheelRefs, pyodidePackages, key?, label? }.
-const INSTALLED_PLUGINS_KEY = "flamapy-ide-installed-plugins";
-
-function loadInstalledPlugins() {
-  try {
-    const raw = localStorage.getItem(INSTALLED_PLUGINS_KEY);
-    const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveInstalledPlugins(list) {
-  localStorage.setItem(INSTALLED_PLUGINS_KEY, JSON.stringify(list));
-}
-
-function pluginSignature(descriptor) {
-  return descriptor.key || (descriptor.wheelRefs || []).join("|");
-}
+// legacy modal operation) live in @flamapy/web-core (operationCatalog); the worker,
+// validation and dispatch live in the flamapy-engine plugin's services.
 
 // Configuration-input operations — run from the configuration panel against the tree's
 // current selection (a {feature: value} mapping). A `method` entry runs that mapping
@@ -123,12 +95,20 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     ? { enabled: true, docId: docIdFromQuery, endpoint: collabEndpoint }
     : { enabled: false };
 
-  const { isLoaded, pluginCatalog, call, installPlugin, interrupt, restart } = useWorkerClient();
+  // ---------------------------------------------------------------------------
+  // v3 workbench: the plugin host, the shell-owned document and the contribution
+  // stores the chrome renders from. The flamapy engine (Pyodide worker, catalog,
+  // validation, dispatch) is a plugin; its services arrive through useEngine.
+  // ---------------------------------------------------------------------------
+  const workbenchRef = useRef(null);
+  if (!workbenchRef.current) {
+    workbenchRef.current = createWorkbench("");
+  }
+  const workbench = workbenchRef.current;
 
   const [isRunning, setIsRunning] = useState(false);
   const [isImported, setIsImported] = useState(true);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [validation, setValidation] = useState(null);
   const [lastOutputHeight, setLastOutputHeight] = useState(150);
   const [output, setOutput] = useState({
     label: "Loading Flamapy...",
@@ -150,9 +130,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   const [modelInfoOpen, setModelInfoOpen] = useState(true);
   const [panelTab, setPanelTab] = useState("output");
 
-  // Plugin config synced from worker on load
-  const [enabledPlugins, setEnabledPlugins] = useState({ sat: true, bdd: true, z3: true });
-
   // Operation-argument modal state ({ action, options } while open, else null)
   const [inputModal, setInputModal] = useState(null);
 
@@ -172,31 +149,11 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   const [selectedAttribute, setSelectedAttribute] = useState(null);
   const [ffmData, setFfmData] = useState(null);
 
-  const [selectedSolver, setSelectedSolver] = useState("sat");
-  // Compute backend: in-browser WASM (default) or a remote flamapy-rest API.
-  const [computeBackend, setComputeBackend] = useState(loadBackend);
-  const [restApiUrl, setRestApiUrl] = useState(loadRestUrl);
-  const [isBackendModalOpen, setIsBackendModalOpen] = useState(false);
-  const [isPluginModalOpen, setIsPluginModalOpen] = useState(false);
-  const editorRef = useRef(null);
-  // The exact editor content the current `validation` state refers to; lets
-  // ensureValidated() skip revalidation only when nothing changed since.
-  const lastValidatedCodeRef = useRef(null);
-
-  // ---------------------------------------------------------------------------
-  // v3 workbench: the plugin host, the shell-owned document and the contribution
-  // stores the chrome renders from. Contributions appear alongside the legacy
-  // hardcoded UI while views/engine code migrates into plugins.
-  // ---------------------------------------------------------------------------
-  const workbenchRef = useRef(null);
-  if (!workbenchRef.current) {
-    workbenchRef.current = createWorkbench("");
-  }
-  const workbench = workbenchRef.current;
   const [pluginModals, setPluginModals] = useState([]);
   const nextModalKeyRef = useRef(0);
   const currentViewRef = useRef("source");
   currentViewRef.current = currentView;
+  const editorRef = useRef(null);
 
   // Delegates capture the freshest state each render (plugins call through them).
   workbench.delegates.showOutput = (label, result) => setOutput({ label, result });
@@ -212,7 +169,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     []
   );
 
-  // Activate the built-in plugins once.
+  // Activate the built-in plugins once (the engine among them).
   useEffect(() => {
     for (const plugin of builtinPlugins) {
       workbench.host.register(plugin);
@@ -223,6 +180,18 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const engine = useEngine(workbench);
+  const { isLoaded, pluginCatalog, validation, restApiUrl, selectedSolver } = engine;
+  const computeBackend = engine.computeBackend ?? WASM;
+
+  const call = useCallback(
+    (action, data) => {
+      if (!engine.services) return Promise.reject(new Error("Engine not ready"));
+      return engine.services.worker.call(action, data);
+    },
+    [engine.services]
+  );
 
   // Contributed views become tabs; plugins can observe the active view.
   const contributedViews = useContributionStore(workbench.stores.views);
@@ -243,59 +212,14 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     return () => subscription.dispose();
   }, [workbench]);
 
-  const selectBackend = useCallback((backend) => {
-    setComputeBackend(backend);
-    saveBackend(backend);
-    if (backend === REST) setIsBackendModalOpen(true);
-  }, []);
-
-  // Install a plugin at runtime and remember it, so the choice is re-applied on the
-  // next load (a fresh worker only has the bundled defaults). `descriptor` is
-  // { wheelRefs, pyodidePackages, key?, label? }.
-  const handleInstallPlugin = useCallback(
-    async (descriptor) => {
-      await installPlugin({
-        wheelRefs: descriptor.wheelRefs,
-        pyodidePackages: descriptor.pyodidePackages,
-      });
-      const list = loadInstalledPlugins();
-      const sig = pluginSignature(descriptor);
-      if (!list.some((d) => pluginSignature(d) === sig)) {
-        saveInstalledPlugins([...list, descriptor]);
-      }
-    },
-    [installPlugin]
-  );
-
-  // Re-apply remembered plugin installs once the (fresh) worker is ready.
-  useEffect(() => {
-    if (!isLoaded) return;
-    const list = loadInstalledPlugins();
-    if (list.length === 0) return;
-    (async () => {
-      for (const descriptor of list) {
-        try {
-          await installPlugin({
-            wheelRefs: descriptor.wheelRefs,
-            pyodidePackages: descriptor.pyodidePackages,
-          });
-        } catch (error) {
-          console.error("Failed to re-install plugin", descriptor, error);
-        }
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded]);
-
   // Which solver backends are installed, derived from the capability catalog the
   // worker reports (updated live when a plugin is installed at runtime). Gates the
   // solver tabs, the bdd-only metrics views, and the "keep selectedSolver valid".
-  useEffect(() => {
-    if (pluginCatalog) {
-      const enabled = {};
-      for (const backend of installedBackends(pluginCatalog)) enabled[backend] = true;
-      setEnabledPlugins(enabled);
-    }
+  const enabledPlugins = useMemo(() => {
+    if (!pluginCatalog) return { sat: true, bdd: true, z3: true };
+    const enabled = {};
+    for (const backend of installedBackends(pluginCatalog)) enabled[backend] = true;
+    return enabled;
   }, [pluginCatalog]);
 
   // When worker finishes loading, update output and trigger file import if needed
@@ -363,13 +287,18 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     [pluginCatalog, selectedSolver]
   );
 
+  const setSelectedSolver = useCallback(
+    (solver) => engine.services?.analysis.setSelectedSolver(solver),
+    [engine.services]
+  );
+
   // Keep selectedSolver valid after config loads
   useEffect(() => {
     if (!enabledPlugins[selectedSolver]) {
       const first = Object.entries(enabledPlugins).find(([, v]) => v);
       if (first) setSelectedSolver(first[0]);
     }
-  }, [enabledPlugins, selectedSolver]);
+  }, [enabledPlugins, selectedSolver, setSelectedSolver]);
 
   // Import file once worker and editor are both ready
   useEffect(() => {
@@ -436,38 +365,27 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
       .filter((l) => l !== "");
   }
 
+  // Shell-side validation wrapper: persist the content (document concerns), then let the
+  // engine validate the document text. The engine tracks staleness by document version.
   function validateModel() {
-    if (!isLoaded) return Promise.resolve(null);
+    if (!isLoaded || !engine.services) return Promise.resolve(null);
     const code = editorRef.current.getValue();
     setInitialContent(code);
     if (!collabConfig.enabled) {
       localStorage.setItem("flamapy-ide-content", code);
     }
-    return call("validateModel", code)
-      .then((result) => {
-        lastValidatedCodeRef.current = code;
-        setValidation(result);
+    return engine.services.analysis.validateNow().then((result) => {
+      if (result) {
         setModelInfo(null); // metrics refer to the previous model — refetch on demand
         setConstraints(getConstraints(code));
-        return result;
-      })
-      .catch((error) => {
-        setOutput({
-          label: "Validation error",
-          result: `An exception occurred validating the model: ${error.message}. Try restarting Flamapy.`,
-        });
-        return null;
-      });
+      }
+      return result;
+    });
   }
 
-  // Operations must run against the code currently in the editor: reuse the
-  // last validation only if the content hasn't changed since (typing-triggered
-  // validation is debounced, so `validation` alone can be stale).
   async function ensureValidated() {
-    if (validation && editorRef.current?.getValue() === lastValidatedCodeRef.current) {
-      return validation;
-    }
-    return await validateModel();
+    if (!engine.services) return null;
+    return engine.services.analysis.ensureValidated();
   }
 
   // The right panel's Validate button also computes the model metrics, which
@@ -523,46 +441,16 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   }
 
   async function runOperation(action) {
+    const { analysis } = engine.services;
     setIsRunning(true);
     setOutput({ label: action.label, result: "Executing operation" });
     try {
-      // Forward the selected solver only to backend-aware operations, merged with any
-      // argument already collected for the operation.
-      const args = action.backendAware
-        ? { ...(action.args || {}), backend: selectedSolver }
-        : action.args || {};
-      let result;
-      if (computeBackend === REST) {
-        result = await executeRestOperation({
-          baseUrl: restApiUrl,
-          method: action.method,
-          modelText: editorRef.current.getValue(),
-          args,
-        });
-      } else {
-        const data = action.backendAware ? { ...action, args } : action;
-        result = JSON.parse((await call("executeFacadeOperation", data)).result);
-      }
+      const result = await analysis.runOperation(action);
       setOutput({ label: action.label, result });
     } catch (error) {
-      setOutput({ label: action.label, result: describeError(error) });
+      setOutput({ label: action.label, result: analysis.describeError(error) });
     }
     setIsRunning(false);
-  }
-
-  // Turn a worker/REST failure into a message the user can act on. The worker
-  // forwards the real Python error; an interrupt surfaces as KeyboardInterrupt.
-  function describeError(error) {
-    const message = error?.message || "";
-    if (message.includes("KeyboardInterrupt")) {
-      return "Operation interrupted.";
-    }
-    if (computeBackend === REST) {
-      return `Remote API error: ${message}`;
-    }
-    return message
-      ? `Error: ${message}`
-      : "An exception occurred. Check the model definition.";
   }
 
   function confirmInputOperation(value) {
@@ -580,27 +468,14 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
     }
 
     if (action.method) {
+      const { analysis } = engine.services;
       setIsRunning(true);
       setOutput({ label: action.label, result: "Executing operation" });
       try {
-        let result;
-        if (computeBackend === REST) {
-          result = await executeRestOperationWithConfig({
-            baseUrl: restApiUrl,
-            method: action.method,
-            modelText: editorRef.current.getValue(),
-            configMapping: configuration,
-            args: action.args || {},
-          });
-        } else {
-          const configs = { configuration_path: configuration };
-          result = JSON.parse(
-            (await call("executeFacadeOperationWithConfig", { action, configs })).result
-          );
-        }
+        const result = await analysis.runOperationWithConfig(action, configuration);
         setOutput({ label: action.label, result });
       } catch (error) {
-        setOutput({ label: action.label, result: describeError(error) });
+        setOutput({ label: action.label, result: analysis.describeError(error) });
       }
       setIsRunning(false);
     } else if (action.value === "configurator") {
@@ -623,25 +498,25 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   }
 
   function interruptExecution() {
-    if (!isLoaded) return;
+    if (!isLoaded || !engine.services) return;
+    const { worker } = engine.services;
     // Fast path: raise KeyboardInterrupt inside the running Python operation
     // (needs cross-origin isolation). The pending call rejects and is shown as
     // "Operation interrupted." — Flamapy itself stays loaded.
-    if (interrupt()) {
+    if (worker.interrupt()) {
       setOutput({ label: "Execution interrupted", result: "Stopping the running operation…" });
       return;
     }
     // Fallback (no SharedArrayBuffer): tear down and reload the whole runtime.
-    restart();
+    worker.restart();
     setIsRunning(false);
-    setValidation(null);
     setOutput({ label: "Execution interrupted", result: "Re-starting Flamapy..." });
   }
 
   async function downloadFile(action) {
     if (!isLoaded) return;
     try {
-      const result = await call("downloadFile", action);
+      const result = await engine.services.analysis.exportModel(action.value);
       saveAs(new File([result], `model.${action.value}`, { type: "text/plain;charset=utf-8" }));
     } catch (error) {
       setOutput({ label: "Export failed", result: error.message });
@@ -828,6 +703,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   }
 
   function executeOptimization() {
+    const { analysis } = engine.services;
     const selectedGoals = Object.entries(optimizationGoals)
       .filter(([, data]) => data.selected)
       .map(([attribute, data]) => ({ attribute, goal: data.goal }));
@@ -843,7 +719,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
         setOutput({ label: result.label, result: result.result.results_str });
         setParetoFrontData(result.result);
       })
-      .catch((error) => setOutput({ label: "Attribute Optimization", result: describeError(error) }))
+      .catch((error) => setOutput({ label: "Attribute Optimization", result: analysis.describeError(error) }))
       .finally(() => setIsRunning(false));
     closeAttrOptModal();
   }
@@ -859,6 +735,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   }
 
   function executeFlowMap() {
+    const { analysis } = engine.services;
     setCurrentView("ffm");
     setIsRunning(true);
     setOutput({ label: "Feature Flow Map", result: "Executing operation" });
@@ -867,7 +744,7 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
         setOutput(result);
         setFfmData(result);
       })
-      .catch((error) => setOutput({ label: "Feature Flow Map", result: describeError(error) }))
+      .catch((error) => setOutput({ label: "Feature Flow Map", result: analysis.describeError(error) }))
       .finally(() => setIsRunning(false));
     closeAttrSelectionModal();
   }
@@ -903,11 +780,13 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
   );
 
   // Status-bar backend control toggles between in-browser WASM and the remote API
-  // (selectBackend opens the settings modal when switching to REST).
-  const toggleComputeBackend = useCallback(
-    () => selectBackend(computeBackend === WASM ? REST : WASM),
-    [computeBackend, selectBackend]
-  );
+  // (switching to REST opens the engine's settings modal via its command).
+  const toggleComputeBackend = useCallback(() => {
+    if (!engine.services) return;
+    const next = computeBackend === WASM ? REST : WASM;
+    engine.services.analysis.setComputeBackend(next);
+    if (next === REST) workbench.shell.commands.execute(OPEN_BACKEND_SETTINGS);
+  }, [computeBackend, engine.services, workbench]);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-surface dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -944,8 +823,8 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
           onToggleSidebar={() => setShowConfiguratorPanel((o) => !o)}
           modelInfoOpen={modelInfoOpen}
           onToggleModelInfo={() => setModelInfoOpen((o) => !o)}
-          onOpenBackend={() => setIsBackendModalOpen(true)}
-          onOpenPlugins={() => setIsPluginModalOpen(true)}
+          onOpenBackend={() => workbench.shell.commands.execute(OPEN_BACKEND_SETTINGS)}
+          onOpenPlugins={() => workbench.shell.commands.execute(OPEN_PLUGIN_MANAGER)}
         />
 
         {showConfiguratorPanel && (
@@ -1071,24 +950,6 @@ function EditorPage({ selectedFile, darkMode, toggleDark }) {
           options={inputModal.options}
           onConfirm={confirmInputOperation}
           onCancel={() => setInputModal(null)}
-        />
-      )}
-      {isBackendModalOpen && (
-        <BackendSettingsModal
-          url={restApiUrl}
-          onSave={(url) => {
-            setRestApiUrl(url);
-            saveRestUrl(url);
-            setIsBackendModalOpen(false);
-          }}
-          onCancel={() => setIsBackendModalOpen(false)}
-        />
-      )}
-      {isPluginModalOpen && (
-        <PluginManagerModal
-          installedBackends={installedBackends(pluginCatalog)}
-          onInstall={handleInstallPlugin}
-          onClose={() => setIsPluginModalOpen(false)}
         />
       )}
     </div>

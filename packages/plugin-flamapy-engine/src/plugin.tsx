@@ -1,0 +1,105 @@
+import type { FlamapyPlugin, Marker, PluginContext } from '@flamapy/plugin-api';
+import { createElement } from 'react';
+
+import { createAnalysisService } from './analysisService';
+import {
+  Analysis,
+  Catalog,
+  Configurator,
+  EngineWorker,
+  OPEN_BACKEND_SETTINGS,
+  OPEN_PLUGIN_MANAGER,
+  type ConfiguratorService,
+  type ValidationResult,
+} from './services';
+import { createWorkerServices } from './workerService';
+// @ts-expect-error untyped JSX components
+import BackendSettingsModal from './ui/BackendSettingsModal.jsx';
+// @ts-expect-error untyped JSX components
+import PluginManagerModal from './ui/PluginManagerModal.jsx';
+
+function markersFrom(validation: ValidationResult | null): Marker[] {
+  if (!validation || validation.valid) {
+    return [];
+  }
+  const errors = (validation.errors ?? []).map(
+    (message): Marker => ({ message: String(message), severity: 'error' }),
+  );
+  const warnings = validation.warnings
+    ? (Array.isArray(validation.warnings) ? validation.warnings : [validation.warnings]).map(
+        (message): Marker => ({ message: String(message), severity: 'warning' }),
+      )
+    : [];
+  return [...errors, ...warnings];
+}
+
+/**
+ * The flamapy analysis engine as a workbench plugin: owns the Pyodide worker (and the
+ * remembered Python-wheel plugin installs), the capability catalog, validation and
+ * WASM/REST operation dispatch — exposed as services. Registers the backend-settings
+ * and plugin-manager modals behind shell commands so any chrome can open them.
+ */
+export const flamapyEnginePlugin: FlamapyPlugin = {
+  manifest: {
+    id: 'flamapy.engine',
+    name: 'Flamapy Analysis Engine',
+    version: '3.0.0',
+  },
+
+  activate(ctx: PluginContext): void {
+    const services = createWorkerServices();
+    ctx.subscriptions.push({ dispose: () => services.dispose() });
+
+    ctx.subscriptions.push(ctx.services.provide(EngineWorker, services.worker));
+    ctx.subscriptions.push(ctx.services.provide(Catalog, services.catalog));
+
+    const analysis = createAnalysisService({
+      worker: services.worker,
+      documents: ctx.shell.documents,
+      onError: (label, message) => ctx.shell.output.show(label, message),
+    });
+    ctx.subscriptions.push(ctx.services.provide(Analysis, analysis));
+
+    const configurator: ConfiguratorService = {
+      start: () => services.worker.call('startConfigurator'),
+      answerQuestion: (answer) => services.worker.call('answerQuestion', answer),
+      undoAnswer: () => services.worker.call('undoAnswer'),
+    };
+    ctx.subscriptions.push(ctx.services.provide(Configurator, configurator));
+
+    // Validation results surface as problem markers.
+    ctx.subscriptions.push(
+      analysis.onValidationChange(() => {
+        ctx.shell.problems.set('flamapy', markersFrom(analysis.validation));
+      }),
+    );
+
+    // Settings modals behind commands, so the activity bar (or any plugin) can open them.
+    ctx.subscriptions.push(
+      ctx.shell.commands.register(OPEN_BACKEND_SETTINGS, () => {
+        ctx.shell.modals.open((close) =>
+          createElement(BackendSettingsModal, {
+            url: analysis.restApiUrl,
+            onSave: (url: string) => {
+              analysis.setRestApiUrl(url);
+              close();
+            },
+            onCancel: close,
+          }),
+        );
+      }),
+    );
+    ctx.subscriptions.push(
+      ctx.shell.commands.register(OPEN_PLUGIN_MANAGER, () => {
+        ctx.shell.modals.open((close) =>
+          createElement(PluginManagerModal, {
+            installedBackends: services.catalog.installedBackends(),
+            onInstall: (descriptor: Parameters<typeof services.worker.installPythonPlugin>[0]) =>
+              services.worker.installPythonPlugin(descriptor),
+            onClose: close,
+          }),
+        );
+      }),
+    );
+  },
+};
