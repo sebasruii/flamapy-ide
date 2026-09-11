@@ -4,8 +4,12 @@ FROM node:22 AS base
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json for installation
+# Copy package.json and package-lock.json for installation. The npm workspaces
+# under packages/ must be present too: `npm ci` links them into node_modules, and
+# without them the workspace symlinks are simply never created and the later
+# `npm run build` fails to resolve @flamapy/web-core and @flamapy/web-ui.
 COPY package*.json ./
+COPY packages ./packages
 
 # Install dependencies (reproducible: exactly what package-lock.json pins)
 RUN npm ci
