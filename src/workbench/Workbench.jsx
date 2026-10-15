@@ -107,14 +107,22 @@ function Workbench({ selectedFile, darkMode, toggleDark }) {
   );
 
   // Activate the built-in plugins once (the engine among them), then any remembered
-  // remote plugins (no-op unless the experimental flag is on).
+  // remote plugins (no-op unless the experimental flag is on). Teardown is deferred a
+  // tick: React StrictMode's dev-only unmount/remount runs cleanup and setup back to
+  // back, and must neither re-register the plugins nor deactivate them in between.
+  const activationRef = useRef({ started: false, teardown: null });
   useEffect(() => {
-    for (const plugin of builtinPlugins) {
-      workbench.host.register(plugin);
+    const activation = activationRef.current;
+    clearTimeout(activation.teardown);
+    if (!activation.started) {
+      activation.started = true;
+      for (const plugin of builtinPlugins) {
+        workbench.host.register(plugin);
+      }
+      workbench.host.activateAll().then(() => loadRememberedRemotePlugins(workbench));
     }
-    workbench.host.activateAll().then(() => loadRememberedRemotePlugins(workbench));
     return () => {
-      workbench.host.deactivateAll();
+      activation.teardown = setTimeout(() => workbench.host.deactivateAll(), 0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
