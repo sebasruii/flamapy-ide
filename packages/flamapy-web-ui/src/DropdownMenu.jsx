@@ -79,7 +79,10 @@ const DropdownMenu = ({
   let selectableIdx = -1;
 
   return (
-    <div ref={dropdownRef} className="relative inline-block w-max z-50" onKeyDown={handleKeyDown}>
+    // No z-index on the wrapper: it would create a stacking context per dropdown, trapping
+    // the open (fixed, z-50) menu at the same level as every other dropdown's button, so
+    // a later one in the DOM (e.g. the configurator panel's) painted over the open menu.
+    <div ref={dropdownRef} className="relative inline-block w-max" onKeyDown={handleKeyDown}>
       <button
         onClick={handleToggle}
         className={className}
